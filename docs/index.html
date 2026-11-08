@@ -1,265 +1,146 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>[Your Product Name] · Building with AI (Fall 2026)</title>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credexon League — Product Page</title>
+<meta name="description" content="Brand-run coin contests: shoppers earn coins for reviews, referrals and purchases, climb a leaderboard and redeem brand products.">
+<style>
+:root{--bg:#fafaf8;--ink:#16161d;--mut:#5f6070;--line:#e3e3ea;--card:#fff;--acc:#5b3cff;--gold:#c98a00;--soft:#f1efff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px 80px}
+header{padding:56px 0 28px;border-bottom:1px solid var(--line)}
+.kicker{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--acc);font-weight:700}
+h1{font-size:40px;line-height:1.1;margin:10px 0 12px}h2{font-size:24px;margin:52px 0 12px}h3{font-size:17px;margin:22px 0 6px}
+.lead{font-size:19px;color:var(--mut);max-width:680px}
+nav{display:flex;gap:16px;flex-wrap:wrap;margin-top:18px;font-size:14px}nav a{color:var(--acc);text-decoration:none;font-weight:600}
+.badge{display:inline-block;background:var(--soft);color:var(--acc);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;margin-right:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mut);font-weight:600;font-size:13px}
+ol li,ul li{margin:6px 0}
+img.shot{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:14px}.gallery figure{margin:0}.gallery figcaption{font-size:13px;color:var(--mut);margin-top:6px}
+.btn{display:inline-block;background:var(--acc);color:#fff;text-decoration:none;padding:11px 18px;border-radius:10px;font-weight:700;margin-top:6px}
+/* wireframes */
+.wf{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.frame{border:2px solid #9a9aa8;border-radius:10px;background:#fff;padding:10px;font:12px/1.35 ui-monospace,Menlo,monospace;color:#555}
+.frame .t{font-weight:700;color:#222;margin-bottom:8px;border-bottom:1px dashed #bbb;padding-bottom:6px}
+.box{border:1.5px dashed #aaa;border-radius:6px;padding:6px;margin:6px 0;background:#f6f6f6}
+.box.solid{border-style:solid;background:#eee}.row{display:flex;gap:6px}.row .box{flex:1}
+.arrow{text-align:center;color:#999;font-size:12px}
+.log td:first-child{white-space:nowrap;font-weight:600}
+.fill{background:#fff6d6;border-radius:4px;padding:0 4px}
+footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+@media(max-width:720px){h1{font-size:30px}.two,.gallery,.wf{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
 
-  <!-- Week 1: create your PostHog account only.
-       Build 2: paste your project's current PostHog web snippet here,
-       then install analytics in the local app and verify events. -->
+<header>
+ <div class="kicker">Credexon · Building with AI · Build 1</div>
+ <h1>Credexon League</h1>
+ <p class="lead">Brand-run coin contests. Shoppers earn coins for reviewing, rating, recommending and buying a brand's products, climb a live leaderboard for rank-wise prizes, and spend coins on that brand's products.</p>
+ <span class="badge">PRD v1</span><span class="badge">Local prototype</span><span class="badge">Updated Nov 8, 2026</span>
+ <nav><a href="#prd">PRD v1</a><a href="#prototype">Prototype</a><a href="#wireframes">Wireframes</a><a href="#log">Build log</a></nav>
+</header>
 
-  <style>
-    :root {
-      --bg: #fafafa;
-      --card: #ffffff;
-      --text: #111827;
-      --muted: #4b5563;
-      --border: #e5e7eb;
-      --accent: #1d63dc;
-      --tag-bg: #eff6ff;
-      --tag-text: #1e40af;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "DM Sans", "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 820px;
-      margin: 0 auto;
-      padding: 48px 24px 80px;
-    }
-    header {
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 28px;
-      margin-bottom: 32px;
-    }
-    .eyebrow {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      background: var(--tag-bg);
-      color: var(--tag-text);
-      padding: 4px 10px;
-      border-radius: 999px;
-      margin-bottom: 12px;
-    }
-    h1 {
-      font-size: 36px;
-      line-height: 1.15;
-      margin: 0 0 12px;
-      letter-spacing: -0.02em;
-    }
-    .tagline {
-      font-size: 19px;
-      color: var(--muted);
-      margin: 0 0 20px;
-    }
-    .cta-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .btn {
-      display: inline-block;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 15px;
-      text-decoration: none;
-      background: var(--accent);
-      color: #fff;
-    }
-    .btn-secondary {
-      background: var(--card);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    section {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px 28px;
-      margin-bottom: 24px;
-    }
-    h2 {
-      font-size: 20px;
-      margin: 0 0 14px;
-      letter-spacing: -0.01em;
-    }
-    h3 {
-      font-size: 16px;
-      margin: 18px 0 6px;
-    }
-    p, ul {
-      margin: 0 0 12px;
-      color: #1f2937;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-    }
-    .stat-box {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      background: var(--bg);
-    }
-    .stat-label {
-      font-size: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-    .log-entry {
-      border-top: 1px solid var(--border);
-      padding-top: 16px;
-      margin-top: 16px;
-    }
-    .log-entry:first-of-type {
-      border-top: none;
-      padding-top: 0;
-      margin-top: 0;
-    }
-    .meta {
-      font-size: 13px;
-      color: var(--muted);
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <!-- HERO / PRODUCT PITCH -->
-    <header>
-      <span class="eyebrow">NYU Stern · Building with AI · Fall 2026</span>
-      <h1>[Your Product Name]</h1>
-      <p class="tagline">[One clear sentence: Who is this for, and what painful job does it do for them?]</p>
-      <div class="cta-row">
-        <a class="btn" href="#live-demo" onclick="window.posthog && posthog.capture('clicked_try_product')">See the Product →</a>
-        <a class="btn btn-secondary" href="#prd">Read the Living PRD</a>
-        <a class="btn btn-secondary" href="#build-log">Weekly Build Log</a>
-      </div>
-    </header>
+<section id="prd">
+<h2>PRD v1</h2>
 
-    <!-- DEMO / SCREENSHOT / VIDEO SHOWCASE -->
-    <section id="live-demo">
-      <h2>Product Showcase (Prototype / Live App / 2-Min Video)</h2>
-      <p>
-        <strong>Current Status:</strong> [Build 1: local prototype / Builds 2–4: local app / Build 5: cloud app]<br />
-        <strong>Demo:</strong> [Add a screenshot or GIF now; add the live cloud app URL in Build 5.]
-      </p>
-      <p class="meta">
-        Ask your coding agent to embed a screenshot or GIF of your local prototype for Build 1. Keep this evidence current, then add your cloud app link and two-minute video in Build 5.
-      </p>
-    </section>
+<h3>Problem</h3>
+<p>Small D2C brands pay for every first order through ads, then struggle to get the second order, reviews and referrals. Their loyalty points are a number in an account page that customers forget. Customers have no reason to come back between purchases and no visible reward for recommending products they already like.</p>
 
-    <!-- LIVING PRD (Updated every week!) -->
-    <section id="prd">
-      <h2>Living PRD (Product Requirements Document)</h2>
-      <p class="meta">Updated every week as we test with real users and learn what works.</p>
+<h3>Reachable user</h3>
+<div class="card">
+ <p><b>Primary user — the repeat shopper.</b> An 18–35-year-old customer of a small D2C beauty or fashion brand in India who has bought at least once and shops on mobile. I can reach these shoppers through Credexon's pilot brands, which reuse the free-pilot-for-feedback approach that won Credexon's B2B clients, and through the audience from Credexon's earlier fantasy app (~45k registered users). For weekly testing in this course, classmates play shoppers on the prototype.</p>
+ <p style="margin-bottom:0"><b>Who pays — the brand marketer.</b> They set coin values and prizes and fund rewards from their own products. They are not the user for Build 1. The brand admin is a non-goal below.</p>
+</div>
 
-      <h3>1. Target User & The Job to Be Done</h3>
-      <p><strong>Who is this for?</strong> [Name a specific, reachable person or role you have direct access to.]</p>
-      <p><strong>The painful "Before" workflow:</strong> [How do they do this today, and why is it slow, manual, or broken?]</p>
-      <p><strong>The "After" workflow with this product:</strong> [What does your tool do for them in one sitting?]</p>
+<h3>Before / after workflow</h3>
+<div class="two">
+ <div class="card"><b>Before</b>
+  <ol><li>Buys once after an Instagram ad.</li><li>Gets a "rate your order" email and ignores it.</li><li>Likes the product and mentions it to a friend, but the brand never knows.</li><li>Sees "120 points" on the account page with no idea what they're worth.</li><li>Next order goes to whichever brand has the better ad that week.</li></ol></div>
+ <div class="card"><b>After</b>
+  <ol><li>Joins the brand's free monthly contest.</li><li>Opens a product they own: rates it (+3), adds a photo review (+15), sends a friend a referral link (+20).</li><li>Reorders with the contest coupon (+30 and 10% off).</li><li>Sees their rank jump and how many coins they need for the next prize tier.</li><li>Spends coins on the brand's own products. Rank doesn't drop.</li></ol></div>
+</div>
 
-      <h3>2. Scope & Explicit Non-Goals</h3>
-      <ul>
-        <li><strong>In Scope (Core Workflow):</strong> [The 1 main workflow this product does reliably]</li>
-        <li><strong>Out of Scope #1:</strong> [Feature you are deliberately NOT building in 6 weeks]</li>
-        <li><strong>Out of Scope #2:</strong> [Feature you are deliberately NOT building in 6 weeks]</li>
-        <li><strong>Out of Scope #3:</strong> [Feature you are deliberately NOT building in 6 weeks]</li>
-      </ul>
+<h3>One core workflow</h3>
+<div class="card">
+ <p style="margin-top:0"><b>Join a contest → act on a product → see your rank move.</b></p>
+ <ol>
+  <li><b>Contests:</b> pick a contest and an entry type: free, coin entry, or VIP pass.</li>
+  <li><b>Products:</b> open a product's <i>Earn coins</i> dropdown and choose an action: write a review (+10), add a photo (+15), rate it (+3), suggest it to a friend (+20 on sign-up), or buy with the contest coupon (+30, plus +10 per ₹1,000).</li>
+  <li><b>Coins credit</b> to the wallet and to every contest the shopper has joined.</li>
+  <li><b>My Contests / Leaderboard:</b> shows current rank, the prize they're on track for, and coins needed to reach the next tier.</li>
+ </ol>
+ <p style="margin-bottom:0"><b>Done means:</b> a first-time shopper completes steps 1–4 unaided in under 2 minutes and can say what they'd win right now.</p>
+</div>
 
-      <h3>3. How It Works Under the Hood & Riskiest Assumption (Week 2+)</h3>
-      <p><strong>Riskiest Assumption:</strong> [What is the #1 technical or user risk that could sink this product?]</p>
-      <p><strong>Simple Architecture:</strong> [User Input] → [Your App / Server] → [AI Model / Tool] → [Output]</p>
+<h3>Supporting features (in the prototype, not the core)</h3>
+<p>Watch rewarded ads (+5–10, max 5/day), daily login streak, wallet with coin history, brand reward shop (Coupons, Products, Experiences, Passes) issuing CRX- coupon codes, and a scoring-system page. Coin values match the Credexon 2.0 engine defaults.</p>
 
-      <h3>4. Unit Economics & Analytics Snapshot (Updated Weekly)</h3>
-      <div class="grid-2">
-        <div class="stat-box">
-          <div class="stat-label">Cumulative Build Spend</div>
-          <div class="stat-value">[Record actual spend]</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Est. Cost Per User Run</div>
-          <div class="stat-value">[Not yet estimated]</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">User Evidence (Analytics from Build 2)</div>
-          <div class="stat-value">[Not yet measured]</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Sponsor Call (Week 6)</div>
-          <div class="stat-value">TBD</div>
-        </div>
-      </div>
-    </section>
+<h3>Three non-goals</h3>
+<ol>
+ <li><b>No brand admin or real store integration.</b> Brands can't configure contests yet. Reviews, purchases and referrals are simulated in the prototype, not verified against a real store.</li>
+ <li><b>No real money.</b> Coins have no cash value and can't be withdrawn. No real payments, no real ad network, no cash prizes. Paid-entry real-money contests are exactly what got banned in India.</li>
+ <li><b>No instant games or native app.</b> Spin-the-wheel, scratch cards and game-based contests from Credexon 2.0 stay out. This is a web app built around brand actions.</li>
+</ol>
 
-    <!-- WEEKLY BUILD LOG (Updated at least twice a week via Git commits) -->
-    <section id="build-log">
-      <h2>Weekly Build Log</h2>
-      <p class="meta">Build on at least two separate days each week outside class, including the November 3 break. Push commits and log actual progress, failures, PRD changes, costs, and hours here. All build deadlines are noon, New York time.</p>
+<h3>How I'll know it works</h3>
+<table><tr><th>Signal</th><th>Target</th><th>PostHog event (Build 2)</th></tr>
+<tr><td>Visitors who join a contest</td><td>25%+</td><td><code>contest_joined</code></td></tr>
+<tr><td>Joiners who complete a product action</td><td>60%+</td><td><code>product_action {type}</code></td></tr>
+<tr><td>Referral links sent per shopper</td><td>0.5+</td><td><code>referral_link_copied</code></td></tr>
+<tr><td>Shoppers who open My Contests again on another day</td><td>30%+</td><td><code>my_contests_viewed</code></td></tr></table>
 
-      <div class="log-entry">
-        <h3>Build 1 · Intent.md & Throwaway Prototype (Due Nov 9)</h3>
-        <ul>
-          <li><strong>What shipped:</strong> [What you actually built; link your local prototype screenshot or GIF above.]</li>
-          <li><strong>Things learned with AI:</strong> [What you learned from AI practice and Terminus Episodes 1 and 2.]</li>
-          <li><strong>What broke / changed in PRD:</strong> [Fill in]</li>
-          <li><strong>Cost & time this week:</strong> $[0.00] · [0] hours</li>
-        </ul>
-      </div>
+<h3>Riskiest assumption</h3>
+<p>That a leaderboard motivates shoppers who are ranked far from a prize. The "coins to next tier" line and the short coin-entry sprint test this. If day-7 return is low for mid-ranked shoppers, the next lever is weekly mini-leagues.</p>
+</section>
 
-      <div class="log-entry">
-        <h3>Build 2 · Smallest Local Version & PostHog (Due Nov 16)</h3>
-        <ul>
-          <li><strong>What shipped:</strong> [Local working slice, PostHog verified on this page and the local app, PRD v2, and local setup in AGENTS.md]</li>
-          <li><strong>What broke / changed in PRD:</strong> [Fill in]</li>
-          <li><strong>Cost & time this week:</strong> $[0.00] · [0] hours</li>
-        </ul>
-      </div>
+<section id="prototype">
+<h2>Prototype</h2>
+<p>A single HTML file that runs locally in any browser with fake data and no backend. It's built to test the flow, not the architecture.</p>
+<a class="btn" href="prototype.html">Open the prototype →</a>
+<div class="gallery" style="margin-top:18px">
+ <figure><img class="shot" src="img/lobby.png" alt="Contest lobby with three entry options"><figcaption>Contests: free, 50-coin and VIP-pass entry</figcaption></figure>
+ <figure><img class="shot" src="img/products.png" alt="Product earn-coins dropdown"><figcaption>Product dropdown: review, photo, rating, refer, buy with coupon</figcaption></figure>
+ <figure><img class="shot" src="img/mycontests.png" alt="My Contests page"><figcaption>My Contests: rank, prize on track for, coins to next tier</figcaption></figure>
+ <figure><img class="shot" src="img/leaderboard.png" alt="Leaderboard with rank-wise prizes"><figcaption>Leaderboard with rank-wise prizes, per contest</figcaption></figure>
+ <figure><img class="shot" src="img/shop.png" alt="Brand reward shop"><figcaption>Reward shop stocked with brand products</figcaption></figure>
+ <figure><img class="shot" src="img/wallet.png" alt="Wallet and coin history"><figcaption>Wallet: balance, earned, spent, history</figcaption></figure>
+</div>
+</section>
 
-      <div class="log-entry">
-        <h3>Build 3 · Build.exe: The Core Workflow (Due Nov 23)</h3>
-        <ul>
-          <li><strong>What shipped:</strong> [End-to-end workflow working with real inputs + PostHog funnel events]</li>
-          <li><strong>What broke / changed in PRD:</strong> [Fill in]</li>
-          <li><strong>Cost & time this week:</strong> $[0.00] · [0] hours</li>
-        </ul>
-      </div>
+<section id="wireframes">
+<h2>Wireframes (core workflow)</h2>
+<div class="wf">
+ <div class="frame"><div class="t">1 · Contests</div>
+  <div class="box solid">[ Contest card ]<br>Name · tag · players · time left<br>Top prize<br>[ Join free ] [ Details ]</div>
+  <div class="box solid">[ Contest card ]<br>[ Enter for 50 coins ]</div>
+  <div class="box solid">[ Contest card ]<br>[ 🔒 VIP pass ]</div></div>
+ <div class="frame"><div class="t">2 · Product</div>
+  <div class="box">[ image ]</div>Product name · ₹price
+  <div class="box solid">Earn coins on this product ▼</div>
+  <div class="box">Write review ........ +10<br>[ textarea ] [Post]</div>
+  <div class="box">Photo review ........ +15</div>
+  <div class="box">★★★★☆ rating ......... +3</div>
+  <div class="box">Suggest to friend ... +20</div>
+  <div class="box">Buy w/ coupon ....... +30</div></div>
+ <div class="frame"><div class="t">3 · My Contests</div>
+  <div class="box solid"><div class="row"><div>Contest name<br>time left</div><div style="text-align:right">#10<br>158 coins</div></div>On track for: 150 coins<br>"363 coins to reach #3"<br>[ Leaderboard ]</div>
+  <div class="box solid">Contest 2 ...</div>
+  <div class="arrow">↓ Leaderboard</div>
+  <div class="box">Rank | Player | Coins | Prize<br>— your row highlighted —</div></div>
+</div>
+</section>
 
-      <div class="log-entry">
-        <h3>Build 4 · Test.py: Choose Track A or Track B (Due Nov 30)</h3>
-        <ul>
-          <li><strong>Chosen track:</strong> [A: 10-case domain eval and one outside target-user review; OR B: 3–5 outside users and replay findings]</li>
-          <li><strong>Results and improvements:</strong> [Before/after evidence; for Track B, fixes to the top three friction points]</li>
-          <li><strong>PRD v4 changes:</strong> [What the evidence changed]</li>
-          <li><strong>Cost & time this week:</strong> $[0.00] · [0] hours</li>
-        </ul>
-      </div>
+<section id="log">
+<h2>Build log</h2>
+<table class="log">
+<tr><td>Build 1<br>Nov 7–8</td><td>
+ <p><b>What works:</b> contest lobby with three entry types (free, coin entry, VIP pass unlocked by tier or a shop pass); per-product dropdown actions (review with a 30-word check, photo, star rating, referral link, buy with coupon); coins credit to the wallet and every joined contest; My Contests with "coins to next tier"; per-contest leaderboard with rank-wise prizes; rewarded-ad flow with a 5/day cap; reward shop issuing CRX- coupons; wallet history.</p>
+ <p><b>What I learned:</b> the agent builds fastest from a concrete reference. Pointing it at the live Credexon 2.0 lobby gave the real scoring values and contest model in one pass, where describing it in words took three rounds. Defining one core workflow first made it obvious which screens are supporting rather than core.</p>
+ <p><b>What broke / changed:</b> the first draft invented a separate points currency, which was wrong because Credexon uses one coin balance with contest score = coins earned in the window. Reviews and purchases moved from a generic task list into a dropdown on each product. Opening one product card stretched its neighbours (fixed). Added multiple contests and a My Contests page.</p>
+ <p><b>Costs:</b> $0 in API or hosting (static HTML, runs locally; GitHub Pages is free). Agent usage is covered by my Claude subscription: <span class="fill">add plan cost</span>.</p>
+ <p><b>Hours:</b> <span class="fill">add your actual hours</span>.</p>
+</td></tr></table>
+</section>
 
-      <div class="log-entry">
-        <h3>Build 5 · Ship.installer: Launch Ops, Rollback Check & 2-Min Video (Due Dec 7)</h3>
-        <ul>
-          <li><strong>Launch Ops & Safety:</strong> [Verified no exposed keys, set spend cap, tested 2-minute rollback]</li>
-          <li><strong>2-Minute Video & Final Polish:</strong> [Link/embed above]</li>
-          <li><strong>Cost & time this week:</strong> $[0.00] · [0] hours</li>
-        </ul>
-      </div>
-    </section>
-  </div>
-</body>
-</html>
+<footer>Credexon League · TECH-GB 2160 Building with AI, Fall 2026 · Prototype data is fictional; "GlowCart" is a made-up brand.</footer>
+</div></body></html>

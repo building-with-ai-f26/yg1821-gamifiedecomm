@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credexon League</title>
+<style>
+:root{--bg:#0d0f1e;--side:#14162b;--card:#1b1e38;--line:#2b2f57;--txt:#f1f2fb;--mut:#9599c2;--gold:#ffc24b;--acc:#7c5cff;--ok:#34d399;--red:#f87171}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}
+.app{display:flex;min-height:100vh}
+aside{width:230px;background:var(--side);border-right:1px solid var(--line);padding:16px;flex-shrink:0}
+.logo{font-weight:800;font-size:17px;margin-bottom:14px}.logo span{background:var(--acc);border-radius:8px;padding:3px 7px;margin-right:6px}
+.me{background:var(--card);border-radius:12px;padding:12px;margin-bottom:14px}.me b{display:block}.me small{color:var(--mut)}
+.sec{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px}
+.nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+.nav button.on,.nav button:hover{background:var(--card);color:var(--gold)}
+.wal{background:linear-gradient(135deg,#3b2a00,#6b4a00);border-radius:12px;padding:12px;margin-top:14px}.wal b{font-size:20px;color:var(--gold)}
+main{flex:1;padding:22px;max-width:960px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px}.mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.grid{display:grid;align-items:start;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.hero{background:linear-gradient(135deg,#5b3cff,#b23cff);border-radius:16px;padding:20px}
+.stats{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.stats div{background:rgba(0,0,0,.25);border-radius:10px;padding:10px 14px}.stats b{display:block;font-size:20px}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;background:var(--gold);color:#241700;cursor:pointer;font-size:14px}
+.btn.ghost{background:var(--line);color:var(--txt)}.btn:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-weight:500;font-size:12px}
+tr.you td{color:var(--gold);font-weight:700}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.tabs button{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:20px;padding:6px 14px;cursor:pointer}.tabs button.on{background:var(--gold);color:#241700}
+.item .img{height:90px;border-radius:10px;background:#11132a;display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:10px}
+.price{color:var(--gold);font-weight:800}
+.task{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.task small{display:block;color:var(--mut)}
+.pill{background:var(--line);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--mut)}
+.up{color:var(--ok)}.down{color:var(--red)}
+.toast{position:fixed;top:16px;right:16px;background:var(--ok);color:#052a1b;padding:10px 16px;border-radius:10px;font-weight:700;display:none;z-index:9}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:8}
+.modal .card{width:340px;text-align:center}.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:14px 0}.bar i{display:block;height:100%;width:0;background:var(--gold);transition:width 3s linear}
+.progress{height:8px;background:var(--line);border-radius:5px;overflow:hidden;margin-top:8px}.progress i{display:block;height:100%;background:var(--ok)}
+.screen{display:none}.screen.on{display:block}
+.prod .img{height:110px;border-radius:10px;background:#11132a;display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:10px}
+.dd{width:100%;margin-top:10px;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between}
+.panel{display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.panel.open{display:block}
+.act{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.act b{display:flex;justify-content:space-between}.act textarea,.act input{width:100%;margin-top:6px;background:#11132a;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font:inherit}
+.stars span{font-size:22px;cursor:pointer;color:var(--line)}.stars span.on{color:var(--gold)}
+.sm{padding:7px 12px;font-size:13px;margin-top:8px}.done{color:var(--ok);font-size:13px;margin-top:6px}
+@media(max-width:760px){.app{flex-direction:column}aside{width:auto}.nav{display:flex;overflow-x:auto;gap:4px}.nav button{white-space:nowrap;width:auto}.sec{display:none}main{padding:16px}}
+</style></head><body>
+<div class="toast" id="toast"></div>
+<div class="modal" id="admodal"><div class="card"><div style="font-size:40px">📺</div><b>GlowCart Winter Collection</b><p class="mut">Rewarded video · watch to earn</p><div class="bar"><i id="adbar"></i></div><p class="mut" id="adtxt">Playing…</p></div></div>
+
+<div class="app">
+<aside>
+ <div class="logo"><span>CX</span>GlowCart League</div>
+ <div class="me"><b id="uname">Guest</b><small id="tier">Bronze · not joined</small></div>
+ <div class="nav">
+  <div class="sec">Contest</div>
+  <button data-s="contest" class="on" onclick="go('contest')">🏅 Contest</button>
+  <button data-s="mine" onclick="go('mine')">🎯 My Contests</button>
+  <button data-s="products" onclick="go('products')">🛍️ Products</button>
+  <button data-s="earn" onclick="go('earn')">⭐ Earn Coins</button>
+  <button data-s="board" onclick="go('board')">🥇 Leaderboard</button>
+  <div class="sec">Earn & Spend</div>
+  <button data-s="shop" onclick="go('shop')">🎁 Rewards Shop</button>
+  <button data-s="wallet" onclick="go('wallet')">👛 My Wallet</button>
+  <button data-s="coupons" onclick="go('coupons')">🎟️ My Coupons</button>
+  <button data-s="scoring" onclick="go('scoring')">📋 Scoring System</button>
+ </div>
+ <div class="wal"><small>My Wallet</small><b id="bal">0</b> <small>coins</small></div>
+</aside>
+
+<main>
+<!-- CONTEST LOBBY -->
+<section class="screen on" id="s-contest">
+ <h1>🏅 Contests</h1><p class="mut">Pick a contest and how you want to enter. Coins you earn count toward every contest you've joined.</p>
+ <div class="grid" id="contestlist"></div>
+</section>
+
+<!-- CONTEST DETAIL -->
+<section class="screen" id="s-detail">
+ <div class="hero"><span class="pill" id="d-tag" style="background:rgba(0,0,0,.3);color:#fff"></span>
+  <h1 style="margin-top:10px" id="d-name"></h1><p style="margin:0;opacity:.9" id="d-desc"></p>
+  <div class="stats"><div><b id="d-left"></b>left</div><div><b id="joined"></b>joined</div><div><b id="cscore">—</b>your coins</div><div><b id="crank">—</b>your rank</div></div>
+  <div style="margin-top:14px" id="joinwrap"></div></div>
+ <h2>🏆 Rank-wise prizes</h2><div class="card" id="d-prizes"></div>
+ <h2>Standings</h2><div class="card" id="miniboard"></div>
+</section>
+
+<!-- MY CONTESTS -->
+<section class="screen" id="s-mine">
+ <h1>🎯 My Contests</h1><p class="mut">Everything you've entered, your rank, and the prize you're on track for.</p>
+ <div id="mine"></div>
+</section>
+
+<!-- PRODUCTS -->
+<section class="screen" id="s-products">
+ <h1>🛍️ GlowCart Products</h1><p class="mut">Open any product to review, rate, refer it to a friend, or buy with your contest coupon. Every action earns coins.</p>
+ <div id="needjoin2" class="card">Join the contest first so your coins count. <button class="btn" style="margin-left:8px" onclick="go('contest')">Go to contest</button></div>
+ <div class="grid" id="products"></div>
+</section>
+
+<!-- EARN -->
+<section class="screen" id="s-earn">
+ <h1>Earn Coins</h1><p class="mut">Values set by GlowCart. Coins earned now count toward the contest.</p>
+ <div id="needjoin" class="card">Join the contest first so your coins count. <button class="btn" style="margin-left:8px" onclick="go('contest')">Go to contest</button></div>
+ <div id="tasks"></div>
+</section>
+
+<!-- BOARD -->
+<section class="screen" id="s-board">
+ <h1>Contest Leaderboard</h1><div class="tabs" id="boardtabs"></div><p class="mut">Coins gained since you joined · updates live</p>
+ <div class="card" id="nexttier" style="display:none"></div>
+ <div class="card" id="board"></div>
+</section>
+
+<!-- SHOP -->
+<section class="screen" id="s-shop">
+ <h1>🎁 Rewards Shop</h1><p class="mut">Redeem coins for GlowCart products. Spending never lowers your contest rank.</p>
+ <div class="tabs" id="shoptabs"></div><div class="grid" id="shop"></div>
+</section>
+
+<!-- WALLET -->
+<section class="screen" id="s-wallet">
+ <h1>👛 My Wallet</h1>
+ <div class="grid"><div class="card"><small class="mut">Current balance</small><h1 class="price" id="wbal">0</h1></div>
+  <div class="card"><small class="mut">Total earned</small><h1 class="up" id="wearn">+0</h1></div>
+  <div class="card"><small class="mut">Total spent</small><h1 class="down" id="wspent">−0</h1></div></div>
+ <h2>🪙 Coin History</h2><div class="card" id="hist"></div>
+</section>
+
+<!-- COUPONS -->
+<section class="screen" id="s-coupons">
+ <h1>🎟️ My Coupons</h1><div class="card" id="coupons"></div>
+</section>
+
+<!-- SCORING -->
+<section class="screen" id="s-scoring">
+ <h1>⭐ Scoring System</h1><p class="mut">How you earn coins, set and updated live by GlowCart.</p>
+ <div class="grid" id="scoring"></div>
+</section>
+</main></div>
+
+<script>
+const S={user:null,joined:false,bal:0,score:0,earned:0,spent:0,hist:[],coupons:[],done:{},ads:0,refs:0,cat:"All"};
+const rivals=[["vishal",640],["Priya S",585],["god10",520],["Arjun M",470],["Neha K",410],["Rohan D",355],["Aisha T",290],["Kabir V",240],["Meera J",180],["Dev P",130],["Sana R",85],["Ishaan G",40]];
+const prizes=[[1,"1,000 coins + Hamper"],[2,"600 coins"],[3,"400 coins"],[10,"150 coins"],[50,"50 coins + 10% off"]];
+const tasks=[
+ {id:"profile",cat:"Registration",t:"Complete profile",d:"Add birthday & sizes",c:25},
+ {id:"social",cat:"Registration",t:"Connect social account",d:"Instagram or Google",c:15},
+ {id:"ad",cat:"Ads",t:"Watch a rewarded video ad",d:"+5–10 coins · max 5/day",c:"5–10",ad:true},
+ {id:"click",cat:"Ads",t:"Ad click-through",d:"Visit the featured collection",c:8},
+ {id:"refer",cat:"Referrals",t:"Invite a friend",d:"+20 when they sign up · 50/month cap",c:20,ref:true},
+ {id:"text",cat:"Reviews",t:"Text review (30+ words)",d:"Review a product you bought",c:10},
+ {id:"photo",cat:"Reviews",t:"Photo review",d:"Add a photo of your purchase",c:15},
+ {id:"rate",cat:"Reviews",t:"Star rating",d:"Rate a recent order",c:3},
+ {id:"buy",cat:"Purchases",t:"Buy with code GLOWLEAGUE",d:"+30 base, +10 per ₹1,000 (demo: ₹2,000 order)",c:50,repeat:true},
+ {id:"first",cat:"E-commerce",t:"First purchase bonus",d:"One-time",c:50}];
+const shop=[
+ {n:"₹250 GlowCart Voucher",cat:"Coupons",e:"🎫",c:300},{n:"15% off next order",cat:"Coupons",e:"🏷️",c:150},
+ {n:"Free shipping for 3 months",cat:"Coupons",e:"🚚",c:200},{n:"GlowCart Lip Tint",cat:"Products",e:"💄",c:450},
+ {n:"Winter Skincare Kit",cat:"Products",e:"🧴",c:900},{n:"GlowCart Tote Bag",cat:"Products",e:"👜",c:600},
+ {n:"Masterclass with GlowCart MUA",cat:"Experiences",e:"🎟️",c:1500},{n:"Early access: Spring drop",cat:"Passes",e:"⚡",c:250},
+ {n:"VIP Contest Entry Pass",cat:"Passes",e:"🏆",c:400}];
+const scoring=[["Registration & Onboarding",[["New Registration","+50"],["Complete Profile","+25"],["Connect Social","+15"]]],
+ ["Referrals",[["Friend Signs Up","+20"],["Friend First Activity","+10"],["Max / Month","50 cap"]]],
+ ["Reviews & Ratings",[["Text Review (30+ words)","+10"],["Photo Review","+15"],["Star Rating","+3"]]],
+ ["Login Streaks (7-Day)",[["Day 1","+5"],["Day 3","+10"],["Day 5","+15"],["Day 7 🔥","+25"]]],
+ ["Promo Code Purchases",[["Base","+30"],["Per ₹1,000","+10"],["Max / Order","100 cap"]]],
+ ["Contests",[["Join a Contest","+25"],["Max Joins / Day","3 cap"]]],
+ ["Ad Engagement",[["Rewarded Video","+5–10"],["Interstitial","+2–3"],["Banner View","+1"],["Click-Through","+8"],["Max Ads / Day","5 cap"]]],
+ ["E-Commerce",[["First Purchase","+50"],["Repeat Purchase","+15"],["Cart Recovery","+10"]]]];
+const $=id=>document.getElementById(id);
+function toast(m,bad){const t=$("toast");t.textContent=m;t.style.background=bad?"var(--red)":"var(--ok)";t.style.display="block";clearTimeout(t._x);t._x=setTimeout(()=>t.style.display="none",1800)}
+function earn(c,why){S.bal+=c;S.earned+=c;if(S.joined)S.score+=c;S.hist.unshift({w:why,c});toast(`+${c} coins · ${why}`);render()}
+function go(s){document.querySelectorAll(".screen").forEach(e=>e.classList.remove("on"));$("s-"+s).classList.add("on");document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.s===s));window.scrollTo(0,0)}
+function tier(){return S.bal>=20000?"Platinum":S.bal>=5000?"Gold":S.bal>=1000?"Silver":"Bronze"}
+function standings(){const a=rivals.map(r=>({n:r[0],c:r[1]}));if(S.joined)a.push({n:S.user+" (You)",c:S.score,me:1});return a.sort((x,y)=>y.c-x.c)}
+function prizeFor(r){for(const p of prizes)if(r<=p[0])return p[1];return "—"}
+function table(list){return `<table><tr><th>Rank</th><th>Player</th><th>Contest coins</th><th>Prize</th></tr>${list.map((r,i)=>`<tr class="${r.me?"you":""}"><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${r.n}</td><td>${r.c.toLocaleString()}</td><td class="mut">${prizeFor(i+1)}</td></tr>`).join("")}</table>`}
+function render(){
+ $("bal").textContent=S.bal.toLocaleString();$("uname").textContent=S.user||"Guest";
+ $("tier").textContent=S.joined?`${tier()} tier · in contest`:"Bronze · not joined";
+ const st=standings(),r=st.findIndex(x=>x.me);
+ $("cscore").textContent=S.joined?S.score:"—";$("crank").textContent=r<0?"—":"#"+(r+1);
+ $("miniboard").innerHTML=table(st.slice(0,5));$("board").innerHTML=table(st);
+ if(r>=0){const tiers=[1,2,3,10,50];const next=tiers.filter(t=>t<r+1).pop();
+  $("nexttier").style.display="block";
+  $("nexttier").innerHTML=next?`You're <b>#${r+1}</b>. Gain <b class="price">${st[next-1].c-S.score+1} coins</b> to reach rank #${next} (${prizeFor(next)}).`:`You're <b>#1</b> 🎉 Keep earning to hold your spot.`}
+ $("needjoin").style.display=S.joined?"none":"block";
+ $("tasks").innerHTML=tasks.map(t=>{const lock=!S.joined,d=S.done[t.id]&&!t.repeat&&!t.ad&&!t.ref,adMax=t.ad&&S.ads>=5;
+  return `<div class="card task"><div><span class="pill">${t.cat}</span> <b>${t.t}</b><small>${t.d}${t.ad?` · ${S.ads}/5 today`:""}${t.ref?` · ${S.refs} joined`:""}</small></div>
+  <button class="btn ${d||adMax?"ghost":""}" ${lock||d||adMax?"disabled":""} onclick="doTask('${t.id}')">${d?"Done ✓":adMax?"Cap reached":t.ref?"Copy link · +20":"+"+t.c}</button></div>`}).join("");
+ const cats=["All","Coupons","Products","Experiences","Passes"];
+ $("shoptabs").innerHTML=cats.map(c=>`<button class="${S.cat==c?"on":""}" onclick="S.cat='${c}';render()">${c}</button>`).join("");
+ $("shop").innerHTML=shop.filter(i=>S.cat=="All"||i.cat==S.cat).map((i,k)=>`<div class="card item"><div class="img">${i.e}</div><b>${i.n}</b><p class="mut" style="margin:4px 0 10px">${i.cat}</p><div class="task"><span class="price">🪙 ${i.c}</span><button class="btn ${S.bal<i.c?"ghost":""}" onclick="redeem('${i.n}')">${S.bal<i.c?`Need ${i.c-S.bal}`:"Redeem"}</button></div></div>`).join("");
+ $("wbal").textContent=S.bal.toLocaleString();$("wearn").textContent="+"+S.earned;$("wspent").textContent="−"+S.spent;
+ $("hist").innerHTML=S.hist.length?`<table><tr><th>Activity</th><th>Coins</th></tr>${S.hist.map(h=>`<tr><td>${h.c>0?"↑":"↓"} ${h.w}</td><td class="${h.c>0?"up":"down"}">${h.c>0?"+":""}${h.c}</td></tr>`).join("")}</table>`:'<span class="mut">No activity yet</span>';
+ $("coupons").innerHTML=S.coupons.length?`<table><tr><th>Code</th><th>Prize</th><th>Source</th><th>Status</th><th>Expires</th></tr>${S.coupons.map(c=>`<tr><td><b>${c.code}</b></td><td>${c.n}</td><td>Rewards Shop</td><td class="up">Active</td><td>08 Dec 2026</td></tr>`).join("")}</table>`:'<span class="mut">Redeem something in the shop to get a coupon.</span>';
+ $("scoring").innerHTML=scoring.map(s=>`<div class="card"><b>${s[0]}</b>${s[1].map(x=>`<div class="task" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="mut">${x[0]}</span><span class="price">${x[1]}</span></div>`).join("")}</div>`).join("");
+ $("joinwrap").innerHTML=S.joined?`<button class="btn" onclick="go('earn')">You've joined · Earn coins →</button>`:`<button class="btn" onclick="join()">Join Contest · +75 coins</button>`;
+}
+function join(){const n=prompt("Your name to register:","Yash");if(n===null)return;S.user=n.trim()||"Yash";S.joined=true;$("joined").textContent="3,413";
+ earn(50,"New registration");earn(25,"Joined a contest");earn(5,"Daily login (day 1)");go("earn")}
+function doTask(id){const t=tasks.find(x=>x.id==id);if(!S.joined)return;
+ if(t.ad)return playAd();
+ if(t.ref){try{navigator.clipboard.writeText("https://glowcart.com/league?ref="+S.user.toUpperCase())}catch(e){}toast("Invite link copied · simulating friend sign-up");setTimeout(()=>{S.refs++;earn(20,"Friend signed up")},1200);return}
+ if(S.done[id]&&!t.repeat)return;S.done[id]=1;earn(t.c,t.t)}
+function playAd(){if(S.ads>=5)return;$("admodal").style.display="flex";$("adtxt").textContent="Playing…";const b=$("adbar");b.style.transition="none";b.style.width="0";
+ setTimeout(()=>{b.style.transition="width 3s linear";b.style.width="100%"},30);
+ setTimeout(()=>{$("admodal").style.display="none";S.ads++;earn(5+Math.floor(Math.random()*6),"Watched a rewarded video ad")},3100)}
+function redeem(n){const i=shop.find(x=>x.n==n);if(S.bal<i.c)return toast(`You need ${i.c-S.bal} more coins`,true);
+ S.bal-=i.c;S.spent+=i.c;S.hist.unshift({w:`Redeemed: ${n} (Rewards Shop)`,c:-i.c});
+ const code="CRX-"+Math.random().toString(36).slice(2,10).toUpperCase();S.coupons.unshift({code,n});toast(`Redeemed! Coupon ${code}`);render()}
+const products=[
+ {id:"p1",n:"Winter Glow Serum",e:"🧴",p:1299},{id:"p2",n:"Velvet Lip Tint",e:"💄",p:599},
+ {id:"p3",n:"Cashmere Scarf",e:"🧣",p:2499},{id:"p4",n:"Hydra Night Cream",e:"🌙",p:899},
+ {id:"p5",n:"Glow Tote Bag",e:"👜",p:1799},{id:"p6",n:"Rose Hand Balm",e:"🌹",p:349}];
+const PS={};products.forEach(p=>PS[p.id]={open:false,stars:0,text:false,photo:false,rate:false,ref:0,buys:0});
+function pAct(id,a){if(!S.joined)return toast("Join the contest first",true);const s=PS[id],p=products.find(x=>x.id==id);
+ if(a=="text"){const v=document.getElementById("t-"+id).value.trim();if(v.split(/\s+/).length<30&&v.length<150)return toast("Write 30+ words to earn coins",true);s.text=true;earn(10,"Text review: "+p.n)}
+ if(a=="photo"){s.photo=true;earn(15,"Photo review: "+p.n)}
+ if(a=="rate"){if(!s.stars)return toast("Pick a star rating",true);s.rate=true;earn(3,`Rated ${p.n} ${s.stars}★`)}
+ if(a=="ref"){try{navigator.clipboard.writeText(`https://glowcart.com/p/${id}?ref=${S.user.toUpperCase()}`)}catch(e){}toast("Product link copied for your friend");setTimeout(()=>{s.ref++;S.refs++;earn(20,"Friend signed up via "+p.n)},1200)}
+ if(a=="buy"){const pts=30+Math.floor(p.p/1000)*10;s.buys++;S.done.first?null:(S.done.first=1,earn(50,"First purchase bonus"));earn(Math.min(pts,100),`Bought ${p.n} with GLOWLEAGUE`)}
+ renderProducts()}
+function star(id,n){PS[id].stars=n;renderProducts()}
+function toggleP(id){PS[id].open=!PS[id].open;renderProducts()}
+function renderProducts(){$("needjoin2").style.display=S.joined?"none":"block";
+ $("products").innerHTML=products.map(p=>{const s=PS[p.id];const off=Math.round(p.p*.9);
+ return `<div class="card prod"><div class="img">${p.e}</div><b>${p.n}</b><p class="mut" style="margin:4px 0">₹${p.p.toLocaleString()}</p>
+ <button class="dd" onclick="toggleP('${p.id}')"><span>Earn coins on this product</span><span>${s.open?"▲":"▼"}</span></button>
+ <div class="panel ${s.open?"open":""}">
+  <div class="act"><b><span>✍️ Write a review</span><span class="price">+10</span></b>${s.text?'<div class="done">✓ Review posted</div>':`<textarea id="t-${p.id}" rows="3" placeholder="30+ words about this product"></textarea><button class="btn sm" onclick="pAct('${p.id}','text')">Post review</button>`}</div>
+  <div class="act"><b><span>📸 Add a photo review</span><span class="price">+15</span></b>${s.photo?'<div class="done">✓ Photo added</div>':`<button class="btn ghost sm" onclick="pAct('${p.id}','photo')">Upload photo</button>`}</div>
+  <div class="act"><b><span>⭐ Star rating</span><span class="price">+3</span></b>${s.rate?`<div class="done">✓ Rated ${s.stars}★</div>`:`<div class="stars">${[1,2,3,4,5].map(n=>`<span class="${n<=s.stars?"on":""}" onclick="star('${p.id}',${n})">★</span>`).join("")}</div><button class="btn ghost sm" onclick="pAct('${p.id}','rate')">Submit rating</button>`}</div>
+  <div class="act"><b><span>👥 Suggest to a friend</span><span class="price">+20</span></b><small class="mut">Earn when they sign up · ${s.ref} joined</small><br><button class="btn ghost sm" onclick="pAct('${p.id}','ref')">Copy referral link</button></div>
+  <div class="act"><b><span>🛒 Buy with coupon GLOWLEAGUE</span><span class="price">+30</span></b><small class="mut">10% off: <s>₹${p.p}</s> ₹${off} · +10 coins per ₹1,000</small><br><button class="btn sm" onclick="pAct('${p.id}','buy')">Buy now${s.buys?` (${s.buys} bought)`:""}</button></div>
+ </div></div>`}).join("")}
+
+const contests=[
+ {id:"winter",name:"GlowCart Winter League",tag:"FREE ENTRY · 30 days",desc:"Season-long. Every coin you earn counts. Most coins gained wins.",left:"12d 08h",n:3412,entry:"free",fee:0,
+  prizes:[[1,"1,000 coins + Winter Hamper"],[2,"600 coins"],[3,"400 coins"],[10,"150 coins"],[50,"50 coins + 10% off"]],scale:1},
+ {id:"weekend",name:"Weekend Sprint",tag:"50-COIN ENTRY · 3 days",desc:"Short and competitive. Pay 50 coins to enter, bigger prizes for the top 10.",left:"2d 04h",n:418,entry:"coins",fee:50,
+  prizes:[[1,"2,500 coins"],[2,"1,500 coins"],[3,"1,000 coins"],[10,"300 coins"]],scale:.4},
+ {id:"vip",name:"VIP Insiders Cup",tag:"VIP PASS · invite only",desc:"For Gold-tier shoppers or VIP pass holders. Prize: the full Spring collection.",left:"6d 11h",n:57,entry:"pass",fee:0,
+  prizes:[[1,"Full Spring collection"],[2,"Skincare kit"],[3,"₹1,000 voucher"]],scale:.7}];
+const CS={};contests.forEach(c=>CS[c.id]={joined:false,score:0});S.active="winter";S.pass=false;
+function C(){return contests.find(c=>c.id==S.active)}
+function anyJoined(){return contests.some(c=>CS[c.id].joined)}
+earn=function(c,why){S.bal+=c;S.earned+=c;contests.forEach(k=>{if(CS[k.id].joined)CS[k.id].score+=c});S.hist.unshift({w:why,c});toast(`+${c} coins · ${why}`);render()};
+standings=function(id){const c=contests.find(x=>x.id==(id||S.active));const a=rivals.map(r=>({n:r[0],c:Math.round(r[1]*c.scale)}));if(CS[c.id].joined)a.push({n:S.user+" (You)",c:CS[c.id].score,me:1});return a.sort((x,y)=>y.c-x.c)};
+prizeFor=function(r,id){for(const p of contests.find(x=>x.id==(id||S.active)).prizes)if(r<=p[0])return p[1];return "Outside prize zone"};
+function rankOf(id){return standings(id).findIndex(x=>x.me)+1}
+function openC(id){S.active=id;go("detail");render()}
+function joinC(id){const c=contests.find(x=>x.id==id);
+ if(!S.user){const n=prompt("Your name to register:","Yash");if(n===null)return;S.user=n.trim()||"Yash";earn(50,"New registration");earn(5,"Daily login (day 1)")}
+ if(c.entry=="coins"){if(S.bal<c.fee)return toast(`Need ${c.fee} coins to enter`,true);S.bal-=c.fee;S.spent+=c.fee;S.hist.unshift({w:"Entry fee: "+c.name,c:-c.fee})}
+ if(c.entry=="pass"&&!S.pass&&!["Gold","Platinum"].includes(tier())){return toast("Needs Gold tier or a VIP pass from the Rewards Shop",true)}
+ CS[id].joined=true;c.n++;earn(25,"Joined "+c.name);S.active=id;go("detail")}
+const joinLabel=c=>c.entry=="free"?"Join free · +25 coins":c.entry=="coins"?`Enter for ${c.fee} coins`:(S.pass?"Enter with VIP pass":"🔒 VIP pass or Gold tier");
+const _r2=render;render=function(){
+ S.joined=anyJoined();const c=C(),cs=CS[c.id];S.score=cs.score;
+ const tmp=S.joined;S.joined=cs.joined;_r2();S.joined=tmp;
+ $("needjoin").style.display=S.joined?"none":"block";$("needjoin2").style.display=S.joined?"none":"block";
+ $("tier").textContent=S.user?`${tier()} tier · ${contests.filter(k=>CS[k.id].joined).length} contests`:"Not registered";
+ $("contestlist").innerHTML=contests.map(k=>`<div class="card"><span class="pill">${k.tag}</span><h2 style="margin:10px 0 4px">${k.name}</h2><p class="mut" style="margin:0 0 10px">${k.desc}</p>
+  <div class="task"><small class="mut">${k.n.toLocaleString()} joined · ${k.left} left<br>Top prize: <b class="price">${k.prizes[0][1]}</b></small></div>
+  <div style="display:flex;gap:8px;margin-top:12px">${CS[k.id].joined?`<button class="btn ghost" onclick="openC('${k.id}')">Joined · Rank #${rankOf(k.id)}</button>`:`<button class="btn" onclick="joinC('${k.id}')">${joinLabel(k)}</button>`}<button class="btn ghost" onclick="openC('${k.id}')">Details</button></div></div>`).join("");
+ $("d-name").textContent=c.name;$("d-tag").textContent=c.tag;$("d-desc").textContent=c.desc;$("d-left").textContent=c.left;$("joined").textContent=c.n.toLocaleString();
+ $("d-prizes").innerHTML=`<table><tr><th>Rank</th><th>Prize</th></tr>${c.prizes.map((p,i)=>`<tr><td>${i<3?["🥇 1st","🥈 2nd","🥉 3rd"][i]:((c.prizes[i-1][0]+1)+" – "+p[0])}</td><td>${p[1]}</td></tr>`).join("")}</table>`;
+ $("cscore").textContent=cs.joined?cs.score:"—";$("crank").textContent=cs.joined?"#"+rankOf(c.id):"—";
+ $("joinwrap").innerHTML=cs.joined?`<button class="btn" onclick="go('products')">You're in · Earn coins →</button>`:`<button class="btn" onclick="joinC('${c.id}')">${joinLabel(c)}</button>`;
+ $("boardtabs").innerHTML=contests.map(k=>`<button class="${k.id==S.active?"on":""}" onclick="S.active='${k.id}';render()">${k.name}</button>`).join("");
+ const mine=contests.filter(k=>CS[k.id].joined);
+ $("mine").innerHTML=mine.length?mine.map(k=>{const r=rankOf(k.id),st=standings(k.id),tiers=k.prizes.map(p=>p[0]),nx=tiers.filter(t=>t<r).pop();
+  return `<div class="card"><div class="task"><div><span class="pill">${k.tag}</span><h2 style="margin:8px 0 2px">${k.name}</h2><small class="mut">${k.left} left · ${k.n.toLocaleString()} players</small></div>
+  <div style="text-align:right"><h1 class="price">#${r}</h1><small class="mut">${CS[k.id].score} coins</small></div></div>
+  <p style="margin:10px 0 4px">On track for: <b>${prizeFor(r,k.id)}</b></p>
+  <small class="mut">${nx?`${st[nx-1].c-CS[k.id].score+1} more coins to reach #${nx} (${prizeFor(nx,k.id)})`:"You're #1. Hold your spot."}</small>
+  <div style="margin-top:10px"><button class="btn ghost sm" onclick="S.active='${k.id}';go('board');render()">Leaderboard</button></div></div>`}).join(""):`<div class="card">You haven't joined a contest yet. <button class="btn sm" onclick="go('contest')">Browse contests</button></div>`;
+ const ntEl=$("nexttier");if(cs.joined){const r=rankOf(c.id),st=standings(),nx=c.prizes.map(p=>p[0]).filter(t=>t<r).pop();ntEl.style.display="block";ntEl.innerHTML=nx?`You're <b>#${r}</b> in ${c.name}. Gain <b class="price">${st[nx-1].c-cs.score+1} coins</b> to reach #${nx} (${prizeFor(nx)}).`:`You're <b>#1</b> 🎉`}else ntEl.style.display="none";
+};
+join=function(){joinC("winter")};
+const _red=redeem;redeem=function(n){const before=S.coupons.length;_red(n);if(n=="VIP Contest Entry Pass"&&S.coupons.length>before){S.pass=true;toast("VIP pass unlocked: VIP Insiders Cup");render()}};
+
+const _r=render;render=function(){_r();renderProducts()};
+tasks.splice(0,tasks.length,...tasks.filter(t=>!["text","photo","rate","buy","first"].includes(t.id)),
+ {id:"goprod",cat:"Products",t:"Review, rate, refer or buy a product",d:"Open any product's dropdown · up to +78 coins per product",c:"→",go:1});
+const _d=doTask;doTask=function(id){if(id=="goprod")return go("products");_d(id)};
+render();
+</script></body></html>
