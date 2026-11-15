@@ -213,7 +213,8 @@ async function startQuiz(id) {
 function showQuestion() {
   const q = QZ.questions[QZ.i], n = QZ.questions.length;
   QZ.answered = false;
-  quizModal(`<div class="row"><b>Question ${QZ.i + 1} of ${n}</b><span class="pill">${esc(q.difficulty)}</span></div>
+  const cat = { brand: `🏷️ ${D.brand.name}`, industry: "🛍️ Industry", general: "🌍 General knowledge" }[q.category] || "";
+  quizModal(`<div class="row"><b>Question ${QZ.i + 1} of ${n}</b><span>${cat ? `<span class="pill">${esc(cat)}</span> ` : ""}<span class="pill">${esc(q.difficulty)}</span></span></div>
    <div class="qbar"><i style="width:${(QZ.i / n) * 100}%"></i></div>
    <h2 style="margin:6px 0 10px">${esc(q.question)}</h2>
    ${q.options.map((o, k) => `<button class="opt" id="opt${k}" onclick="answer(${k})">${String.fromCharCode(65 + k)}. ${esc(o)}</button>`).join("")}
@@ -227,7 +228,7 @@ async function answer(k) {
     const r = await api("/api/quiz/answer", { quizId: QZ.quizId, index: QZ.i, choice: k });
     if (r.correct) QZ.correct++;
     $("opt" + r.correctIndex).classList.add("right"); if (!r.correct) $("opt" + k).classList.add("wrong");
-    track("quiz_answered", { contest_id: QZ.contestId, question_index: QZ.i, correct: r.correct });
+    track("quiz_answered", { contest_id: QZ.contestId, question_index: QZ.i, correct: r.correct, category: QZ.questions[QZ.i].category });
     const last = QZ.i === QZ.questions.length - 1;
     $("qfeedback").innerHTML = `<p class="${r.correct ? "up" : "down"}"><b>${r.correct ? "✓ Correct!" : "✗ Not quite."}</b> <span class="mut">${esc(r.explanation)}</span></p><button class="btn" onclick="${last ? "finishQuiz()" : "QZ.i++;showQuestion()"}">${last ? "See results" : "Next question →"}</button>`;
   } catch (e) { toast(e.message, true); }

@@ -252,7 +252,7 @@ async function previewQuiz(ev) {
   $("pv-btn").disabled = true; $("pv-out").innerHTML = '<p class="mut">Generating with Claude…</p>';
   try {
     const r = await api("/api/admin/quiz-preview", { topic: $("pv-topic").value, difficulty: $("pv-diff").value, questions: $("pv-n").value });
-    $("pv-out").innerHTML = r.questions.map((q, i) => `<div class="q"><b>${i + 1}. ${esc(q.question)}</b> <span class="pill">${esc(q.difficulty)}</span><ol type="A">${q.options.map((o, k) => `<li class="${k === q.correct ? "ok" : ""}">${esc(o)}${k === q.correct ? " ✓" : ""}</li>`).join("")}</ol><small class="mut">${esc(q.explanation)}</small></div>`).join("");
+    $("pv-out").innerHTML = r.questions.map((q, i) => `<div class="q"><b>${i + 1}. ${esc(q.question)}</b> <span class="pill">${esc(q.category || "")}</span> <span class="pill">${esc(q.difficulty)}</span><ol type="A">${q.options.map((o, k) => `<li class="${k === q.correct ? "ok" : ""}">${esc(o)}${k === q.correct ? " ✓" : ""}</li>`).join("")}</ol><small class="mut">${esc(q.explanation)}</small></div>`).join("");
   } catch (e) { $("pv-out").innerHTML = `<p class="pill bad">${esc(e.message)}</p>`; }
   $("pv-btn").disabled = false; refresh();
 }

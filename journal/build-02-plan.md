@@ -43,8 +43,8 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 
 ## 5. What it cost
 - **Agent spend:** $0 extra; Claude Code is covered by Claude Pro ($20/month).
-- **API runtime spend (quiz generation):** $0.018 for 14 test quizzes (Nov 15): $0.0086 for 8 general-knowledge quizzes (first version) + $0.0089 for 6 brand-only quizzes.
-- **Cost per quiz (5 questions):** $0.0015 per brand quiz on Claude Haiku 5.5 (was $0.0011 before the brand brief was added); 10.6 s average generation time; 0 failed calls.
+- **API runtime spend (quiz generation):** about $0.03 for about 20 test quizzes (Nov 15): $0.0086 general-knowledge version (8), $0.0089 brand-only version (6), about $0.011 mixed version (6), plus a key check.
+- **Cost per quiz (5 questions):** $0.0018 per mixed quiz on Claude Haiku 5.5 (brand-only was $0.0015; general-only $0.0011); 13.4 s average generation time; 0 failed calls.
 - **Tokens per quiz:** about 2,300 in (the brand brief) / 2,550 out on average (output includes the model's reasoning and 2 spare questions used to drop repeats).
 - **Hosting:** $0 (GitHub Pages free; app runs locally).
 - **Your hours spent this week:** about 8 hrs (Nov 14–15)
@@ -59,6 +59,7 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 - Earn actions: points credited only to joined contests that score the action (quiz-only contest ignored reviews).
 - Brand-only quiz (after the change): 5 plays → 25 questions, all about GlowCart (founders, founding, Instagram start, best-seller, Spring Bloom launch, Monsoon Repair serum, coupon, shipping, returns, product details), 0 repeats, every answer matches the brand profile.
 - Change requested: questions must be brand-specific, not general knowledge. Replaced the random, e-commerce and electronics topics with 4 brand topics and a brand profile.
+- Second change requested: the quiz should be a good mix, not brand-only. Added a `mix` topic (default) = 3 brand + 1 industry + 1 general per 5, enforced by the server; each question is labelled. Test: 5 plays → 15 brand / 5 industry / 5 general, 0 repeats, all correct; $0.0018 and 13.4 s per quiz (over the 10 s target; pre-generating is in the backlog).
 - Small fix found while testing: points and plays behind the quiz results popup now update immediately.
 
 ## 6. Pod Critique Sign-off

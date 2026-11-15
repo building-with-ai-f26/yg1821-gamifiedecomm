@@ -15,7 +15,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIR = path.join(ROOT, "app");
 const DATA_DIR = path.join(ROOT, "data");
-const DB_FILE = path.join(DATA_DIR, "db.json");
+const DB_FILE = process.env.DB_FILE || path.join(DATA_DIR, "db.json"); // DB_FILE lets you run a separate test copy
 const PORT = Number(process.env.PORT) || 3000;
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
@@ -40,14 +40,18 @@ const ACTIONS = {
   quiz_perfect: "Quiz: perfect-score bonus",
 };
 
-// Every quiz is about the contest's brand: never general knowledge. Facts come only from the brand profile + catalog.
+// Quiz topics the brand admin can pick per contest. Default is a mix: mostly brand questions, plus industry and general knowledge.
+// Brand questions may only use facts from the brand profile + catalog; industry and general questions must be well-established facts.
 const TOPICS = {
-  brand_mix: "Brand mix: story, products & launches",
-  brand_story: "Brand story & facts",
-  brand_products: "Products & best-sellers",
-  brand_launches: "New launches, collections & offers",
+  mix: "Good mix: brand + industry + general knowledge",
+  brand_mix: "Brand only: story, products & launches",
+  brand_story: "Brand only: story & facts",
+  brand_products: "Brand only: products & best-sellers",
+  brand_launches: "Brand only: launches, collections & offers",
+  industry: "Industry knowledge only",
+  general: "General knowledge only",
 };
-const DEFAULT_TOPIC = "brand_mix";
+const DEFAULT_TOPIC = "mix";
 
 // Brand profile the admin will edit in Build 3 (fictional demo brand).
 function seedBrand() {
@@ -121,16 +125,16 @@ function seed() {
         entry: { type: "free", fee: 0 },
         prizes: [{ upTo: 1, coins: 1000, note: "+ Winter Hamper" }, { upTo: 2, coins: 600 }, { upTo: 3, coins: 400 }, { upTo: 10, coins: 150 }],
         scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 },
-        quiz: { enabled: true, topic: "brand_mix", difficulty: "mixed", questions: 5, maxPlays: 5 },
+        quiz: { enabled: true, topic: "mix", difficulty: "mixed", questions: 5, maxPlays: 5 },
         seedPlayers: rivals(1),
       },
       {
         id: "trivia", name: "GlowCart Trivia Cup", tag: "FREE ENTRY · Quiz only · 7 days", status: "live", endsAt: now + 5 * day,
-        desc: "How well do you know GlowCart? Answer AI-written questions about the brand, its best-sellers and new launches; only quiz points count.",
+        desc: "Quiz contest: AI-written questions about GlowCart, the beauty & e-commerce industry, and general knowledge. Only quiz points count.",
         entry: { type: "free", fee: 0 },
         prizes: [{ upTo: 1, coins: 1000 }, { upTo: 2, coins: 500 }, { upTo: 3, coins: 250 }],
         scoring: { review: 0, photo: 0, rating: 0, referral: 0, purchase: 0, quiz_correct: 10, quiz_perfect: 25 },
-        quiz: { enabled: true, topic: "brand_mix", difficulty: "medium", questions: 5, maxPlays: 5 },
+        quiz: { enabled: true, topic: "mix", difficulty: "medium", questions: 5, maxPlays: 5 },
         seedPlayers: rivals(0.35),
       },
       {
@@ -152,6 +156,7 @@ function seed() {
         seedPlayers: rivals(0.7),
       },
     ],
+    version: 3,
     users: {},
     events: [],
     aiUsage: [],
@@ -165,6 +170,13 @@ function load() {
   catch { db = seed(); save(); return; }
   // Upgrade older demo data: brand profile + brand-only quiz topics.
   if (!Array.isArray(db.brand?.facts)) db.brand = seedBrand();
+  // v3: the default quiz became a brand + industry + general mix.
+  if ((db.version || 0) < 3) {
+    for (const c of db.contests) if (c.quiz.topic === "brand_mix" && ["winter", "trivia"].includes(c.id)) c.quiz.topic = "mix";
+    const t = db.contests.find((c) => c.id === "trivia");
+    if (t) t.desc = "Quiz contest: AI-written questions about GlowCart, the beauty & e-commerce industry, and general knowledge. Only quiz points count.";
+    db.version = 3;
+  }
   for (const c of db.contests) if (!TOPICS[c.quiz.topic]) c.quiz.topic = DEFAULT_TOPIC;
   save();
 }
@@ -232,15 +244,25 @@ const QuizSchema = z.object({
     correct_index: z.number().int(),
     explanation: z.string(),
     difficulty: z.enum(["easy", "medium", "hard"]),
+    category: z.enum(["brand", "industry", "general"]),
   })),
 });
 
-const TOPIC_FOCUS = {
-  brand_mix: "Mix the questions across the brand's story, its products and best-sellers, and its upcoming launches and offers.",
+const BRAND_FOCUS = {
+  brand_mix: "Spread them across the brand's story, its products and best-sellers, and its upcoming launches and offers.",
   brand_story: "Focus on the brand's story and facts: founding year and city, founders, how it started, its promise, milestones, stores and values.",
   brand_products: "Focus on the brand's products: what they contain, how to use them, sizes, shades, prices, ratings and which products sell best.",
   brand_launches: "Focus on what's new and next: upcoming collections and launch dates, what's in them, who gets early access, plus current offers, shipping and returns.",
 };
+// How many questions of each category a play needs (5 questions in "mix" = 3 brand, 1 industry, 1 general).
+function quotaFor(topic, count) {
+  if (topic === "industry") return { brand: 0, industry: count, general: 0 };
+  if (topic === "general") return { brand: 0, industry: 0, general: count };
+  if (topic !== "mix") return { brand: count, industry: 0, general: 0 };
+  const industry = Math.max(1, Math.round(count * 0.2));
+  const general = count >= 4 ? Math.max(1, Math.round(count * 0.2)) : 0;
+  return { brand: count - industry - general, industry, general };
+}
 // Everything the model may use: brand profile + live catalog stats (so "best-seller" and "top-rated" questions match the shop).
 function brandBrief() {
   const products = db.products.map((p) => {
@@ -265,19 +287,25 @@ function claude() {
 
 async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = null, purpose = "play" }) {
   const anthropic = claude();
+  const quota = quotaFor(topic, count);
+  // Spares: +1 for each of the two largest categories in the quota.
+  const ask = { ...quota };
+  const big = Object.keys(ask).filter((k) => ask[k] > 0).sort((a, b) => ask[b] - ask[a]);
+  ask[big[0]] += 1; ask[big[1] || big[0]] += 1;
   const system = [
-    `You write multiple-choice quiz questions for ${db.brand.name}'s shopping-rewards contest. The quiz exists so shoppers get to know the brand: every question must be about ${db.brand.name} itself (its story, people, products, best-sellers, launches, collections, offers or policies). Never ask general-knowledge or industry trivia that isn't about this brand.`,
-    "Use ONLY facts stated in the brand brief you are given. Never invent dates, names, ingredients, prices, shades, launches or claims. Players earn contest points for correct answers, so every question must be accurate and fair.",
-    "Wrong options must be plausible but clearly false according to the brief (e.g. another product's ingredient, a different year).",
+    `You write multiple-choice quiz questions for ${db.brand.name}'s shopping-rewards contest. Players earn contest points for correct answers, so every question must be accurate and fair. Each question has a category:`,
+    `- "brand": about ${db.brand.name} itself (its story, people, products, best-sellers, launches, collections, offers or policies). Use ONLY facts stated in the brand brief; never invent dates, names, ingredients, prices, shades, launches or claims. Wrong options must be clearly false according to the brief.`,
+    `- "industry": about the brand's industry (${db.brand.industry}), e.g. what common ingredients do, product types, how online shopping and delivery work. Only widely established facts; never about another specific company's prices, offers, launches or rumours.`,
+    `- "general": family-friendly general knowledge (science, geography, food, sport, culture). Only well-established facts that won't change.`,
     "Rules: exactly 4 answer options per question, exactly one correct; no 'all/none of the above'; no trick wording; keep each question under 25 words and each option under 8 words; explanation is one short sentence (under 25 words) saying why the answer is right.",
     "Set each question's difficulty field honestly.",
   ].join("\n");
   const userMsg = [
     `Brand brief (JSON):\n${JSON.stringify(brandBrief())}`,
-    TOPIC_FOCUS[topic] || TOPIC_FOCUS[DEFAULT_TOPIC],
+    // Ask for 2 spares (extra brand or category questions) so we can drop any duplicates of questions this player has already seen.
+    `Write exactly ${count + 2} questions, all different from each other: ${Object.entries(ask).filter(([, n]) => n > 0).map(([k, n]) => `${n} with category "${k}"`).join(", ")}.`,
+    quota.brand ? `For the brand questions: ${BRAND_FOCUS[topic] || BRAND_FOCUS.brand_mix}` : "",
     DIFFICULTY_RULES[difficulty],
-    // Ask for 2 spares so we can drop any duplicates of questions this player has already seen.
-    `Write exactly ${count + 2} questions, all different from each other.`,
     avoid.length ? `Do not repeat or closely paraphrase these questions the player has already seen:\n- ${avoid.join("\n- ")}` : "",
   ].filter(Boolean).join("\n\n");
 
@@ -304,14 +332,20 @@ async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = 
     if (!parsed) fail(502, "The AI returned questions in an unexpected format. Please try again.");
     const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const seen = new Set(avoid.map(norm));
-    const questions = parsed.questions
+    const valid = parsed.questions
       .filter((q) => q.options.length === 4 && q.correct_index >= 0 && q.correct_index < 4 && new Set(q.options).size === 4)
       .filter((q) => { const k = norm(q.question); if (seen.has(k)) return false; seen.add(k); return true; }) // no repeats
-      .slice(0, count)
+      .filter((q) => quota[q.category] > 0); // brand-only topics keep only brand questions, etc.
+    // Fill each category up to its quota, then top up with any leftovers so a play always has `count` questions.
+    const picked = [], left = { ...quota };
+    for (const q of valid) if (left[q.category] > 0) { picked.push(q); left[q.category]--; }
+    for (const q of valid) if (picked.length < count && !picked.includes(q)) picked.push(q);
+    const questions = picked.slice(0, count)
+      .sort(() => Math.random() - 0.5) // mix the categories through the quiz
       .map((q) => {
         // Shuffle options server-side so the correct answer isn't always in the same position.
         const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
-        return { question: q.question, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct_index), explanation: q.explanation, difficulty: q.difficulty };
+        return { question: q.question, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct_index), explanation: q.explanation, difficulty: q.difficulty, category: q.category };
       });
     if (questions.length < count) fail(502, "The AI returned too few valid questions. Please try again.");
     record.ok = true;
@@ -444,7 +478,7 @@ const routes = {
     return {
       quizId: id, play: j.plays, maxPlays: c.quiz.maxPlays, topic: TOPICS[c.quiz.topic], difficulty: c.quiz.difficulty,
       pointsPerCorrect: c.scoring.quiz_correct, perfectBonus: c.scoring.quiz_perfect,
-      questions: questions.map(({ question, options, difficulty }) => ({ question, options, difficulty })),
+      questions: questions.map(({ question, options, difficulty, category }) => ({ question, options, difficulty, category })),
     };
   },
 
