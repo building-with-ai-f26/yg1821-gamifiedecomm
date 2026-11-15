@@ -47,8 +47,8 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 - **Cost per quiz (5 questions):** $0.0015 per brand quiz on Claude Haiku 5.5 (was $0.0011 before the brand brief was added); 10.6 s average generation time; 0 failed calls.
 - **Tokens per quiz:** about 2,300 in (the brand brief) / 2,550 out on average (output includes the model's reasoning and 2 spare questions used to drop repeats).
 - **Hosting:** $0 (GitHub Pages free; app runs locally).
-- **Your hours spent this week:** `___ hrs`
-- **Cumulative project spend to date:** `$___`
+- **Your hours spent this week:** about 8 hrs (Nov 14–15)
+- **Cumulative project spend to date:** about $0.02 in API calls + Claude Pro subscription ($20/month); about 14 hours total (Build 1: ~6, Build 2: ~8)
 
 ## 5b. Manual test results (Nov 15)
 - Answer key: my own answers matched the server's key 5/5 on the first quiz.

@@ -682,6 +682,14 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use: the app is probably already running. Open http://localhost:${PORT}\nTo run a second copy, use another port:  PORT=3001 npm start`);
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Credexon League running:\n  Player app:  http://localhost:${PORT}\n  Brand admin: http://localhost:${PORT}/admin`);
   console.log(`  AI quiz model: ${MODEL} (${process.env.ANTHROPIC_API_KEY ? "API key loaded" : "NO API KEY — add ANTHROPIC_API_KEY to .env"})`);
