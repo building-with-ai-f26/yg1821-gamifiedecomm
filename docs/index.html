@@ -43,15 +43,109 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 </head><body><div class="wrap">
 
 <header>
- <div class="kicker">Credexon · Building with AI · Build 1</div>
+ <div class="kicker">Credexon · Building with AI · Build 2</div>
  <h1>Credexon League</h1>
- <p class="lead">Brand-run coin contests. Shoppers earn coins for reviewing, rating, recommending and buying a brand's products, climb a live leaderboard for rank-wise prizes, and spend coins on that brand's products.</p>
- <span class="badge">PRD v1</span><span class="badge">Local prototype</span><span class="badge">Updated Nov 8, 2026</span>
- <nav><a href="#prd">PRD v1</a><a href="#prototype">Prototype</a><a href="#wireframes">Wireframes</a><a href="#log">Build log</a></nav>
+ <p class="lead">Brand-run points contests. Shoppers earn points by playing an AI-written brand quiz and by reviewing, rating, recommending and buying the brand's products, climb each contest's leaderboard, and win coins to spend on that brand's products.</p>
+ <span class="badge">PRD v2</span><span class="badge">Local app + AI quiz</span><span class="badge">Updated Nov 15, 2026</span>
+ <nav><a href="#prd2">PRD v2</a><a href="#app2">Build 2 app</a><a href="#prd">PRD v1</a><a href="#prototype">Prototype</a><a href="#wireframes">Wireframes</a><a href="#log">Build log</a></nav>
 </header>
 
+<section id="prd2">
+<h2>PRD v2 <span class="badge">Build 2 · Nov 15, 2026</span></h2>
+<p>Build 2 turns the click-through prototype into a working local app with a real AI call: an <b>AI-written brand quiz</b> inside each contest. It also separates <b>points</b> (per contest, for the leaderboard) from <b>coins</b> (the wallet currency, paid as prizes).</p>
+
+<h3>What changed since PRD v1</h3>
+<table>
+<tr><th>Area</th><th>PRD v1 (Build 1)</th><th>PRD v2 (Build 2)</th></tr>
+<tr><td>Currency</td><td>One coin balance; coins earned counted on every leaderboard</td><td><b>Points</b> belong to one contest and drive its leaderboard. <b>Coins</b> are the wallet: a 500-coin welcome bonus plus contest prizes, spent in the Rewards Shop.</td></tr>
+<tr><td>Joining contests</td><td>No limit</td><td>Up to <b>5 live contests</b> at once</td></tr>
+<tr><td>Point rules</td><td>Same values everywhere</td><td>Each contest picks which actions score and how much (a quiz-only contest ignores reviews)</td></tr>
+<tr><td>Earning</td><td>Dropdown on the Products page</td><td><b>Rewards Shop → Earn</b> tab: review, photo, rating, referral, purchase. One action credits every joined contest that scores it.</td></tr>
+<tr><td>Games</td><td>None</td><td><b>AI quiz</b>: 5 questions per play written by Claude, up to 5 plays per contest, no repeated questions</td></tr>
+<tr><td>Contest page</td><td>Prizes and standings</td><td>Tabs: <b>Prizes, Leaderboard, Scoring, How to Play</b>, plus the quiz card</td></tr>
+<tr><td>Leaderboards</td><td>Per contest</td><td>Per contest, plus <b>general leaderboards</b>: most points, quiz plays and coins won; most-reviewed and top-rated products</td></tr>
+<tr><td>Brand side</td><td>Non-goal</td><td><b>Admin panel sketch</b>: analytics, launch/edit contests, quiz topic and difficulty, plays allowed, prizes, Rewards Shop items, AI cost (full version in Build 3)</td></tr>
+<tr><td>Tech</td><td>One static HTML file, fake data</td><td>Local Node server, JSON data store, Claude API (Haiku 5.5), PostHog analytics</td></tr>
+</table>
+
+<h3>Biggest risk</h3>
+<div class="card">
+ <p style="margin-top:0"><b>Shoppers won't spend time with a brand between purchases, and a prize leaderboard only works if every question is accurate and fair.</b></p>
+ <p style="margin-bottom:0">Brands pay for engagement with their products, not just for sales. If shoppers don't replay the brand quiz, the contest is just a coupon. If AI questions are wrong, repeated or too easy, rankings feel rigged and brands won't trust them with prizes. Cost matters too: a question generator that costs more per player than the prize budget can't scale.</p>
+</div>
+
+<h3>How Build 2 tests it</h3>
+<table>
+<tr><th>Question</th><th>Signal (PostHog / app log)</th><th>Target in pod testing</th></tr>
+<tr><td>Do joiners play the quiz?</td><td><code>contest_joined</code> → <code>quiz_started</code></td><td>70%+ of joiners start a quiz</td></tr>
+<tr><td>Do they finish and replay?</td><td><code>quiz_completed</code>; plays per player</td><td>80%+ completion; average 2+ of 5 plays</td></tr>
+<tr><td>Is it the right difficulty?</td><td>Average score in admin "Avg quiz score"</td><td>50–85% (not trivial, not impossible)</td></tr>
+<tr><td>Are the questions accurate and new?</td><td>Testers flag wrong or repeated questions</td><td>0 wrong answers and 0 repeats across 25 questions per player</td></tr>
+<tr><td>Does the leaderboard move?</td><td>Rank change after a quiz (two players, Switch player)</td><td>Each play visibly changes rank</td></tr>
+<tr><td>Is it cheap and fast enough?</td><td>Cost and time per AI call (<code>npm run usage</code>)</td><td>Under $0.01 per quiz; under 10 s to generate</td></tr>
+</table>
+
+<h3>Core workflow (v2)</h3>
+<div class="card">
+ <p style="margin-top:0"><b>Join a contest → play the AI quiz → watch your rank move.</b></p>
+ <ol>
+  <li><b>Contests:</b> join a contest (free, coin entry or VIP pass), up to 5 at once.</li>
+  <li><b>Contest page:</b> check Prizes, Scoring and How to Play, then press <b>Play quiz</b>.</li>
+  <li><b>Quiz:</b> answer 5 AI-written questions; each answer is marked right or wrong with a one-line explanation.</li>
+  <li><b>Points:</b> +10 per correct answer and +25 for a perfect score (set by the brand) go to that contest's leaderboard. Up to 5 plays, with new questions every time.</li>
+  <li><b>Rewards Shop → Earn:</b> reviews, ratings, referrals and purchases add points to every joined contest that scores them.</li>
+  <li><b>Contest ends:</b> top ranks win coins, spent in Rewards Shop → Redeem.</li>
+ </ol>
+ <p style="margin-bottom:0"><b>Done means:</b> a new player joins, plays the quiz 2+ times, sees no repeated or wrong questions, and can say their rank and what they'd win.</p>
+</div>
+
+<h3>How the app works</h3>
+<div class="card">
+ <ol style="margin-top:0">
+  <li><b>Player app</b> (<code>app/index.html</code>) and <b>brand admin</b> (<code>app/admin.html</code>) run in the browser and talk to one local server, <code>server.js</code>.</li>
+  <li>When the player presses <i>Play quiz</i>, the server checks they joined, the contest is live and plays are left, then reads the contest's quiz settings: topic (GlowCart products / e-commerce / electronics / random), difficulty (easy / medium / hard / mixed) and number of questions.</li>
+  <li>The server calls the <b>Claude API</b> (model <code>claude-haiku-5-5</code>, set in <code>.env</code>) with <b>structured outputs</b>, so the reply is always valid JSON: question, 4 options, correct answer and explanation.
+   <ul><li>For brand quizzes Claude gets only the product catalog, so it can't invent product facts.</li>
+   <li>It also gets the questions this player has already seen, and the server drops any duplicate.</li></ul></li>
+  <li>The server shuffles the options, <b>keeps the answer key</b> (the browser never sees it), and returns the questions. Each answer is checked on the server; at the end, points are added to that contest only.</li>
+  <li>Contests, players, points, coins and shop items live in <code>data/db.json</code>. Every AI call is logged with tokens, cost and time; the admin page and <code>npm run usage</code> report them.</li>
+  <li><b>PostHog</b> records pageviews, clicks, session replay and the funnel events <code>contest_joined</code>, <code>quiz_started</code>, <code>quiz_answered</code>, <code>quiz_completed</code>, <code>earn_action</code> and <code>reward_redeemed</code>.</li>
+  <li>The API key lives only in <code>.env</code> on my laptop (git-ignored); the PostHog token in the pages is the public one.</li>
+ </ol>
+</div>
+
+<h3>Cost per run</h3>
+<table>
+<tr><th></th><th>Claude Haiku 5.5 (current)</th><th>Claude Opus 5.5 (option)</th></tr>
+<tr><td>Price per million tokens (in / out)</td><td>$0.10 / $0.50</td><td>$4 / $20</td></tr>
+<tr><td>One quiz (5 questions; ~1.2k tokens in, ~1.5k out incl. reasoning)</td><td>≈ $0.001</td><td>≈ $0.035</td></tr>
+<tr><td>One player, 5 plays in a contest</td><td>≈ $0.005</td><td>≈ $0.18</td></tr>
+<tr><td>1,000 players × 5 plays</td><td>≈ $4.50</td><td>≈ $175</td></tr>
+</table>
+<p id="measured-cost"><b>Measured in Build 2 testing:</b> <span class="fill">pending first real AI test</span>. Hosting is $0 (GitHub Pages; the app runs locally) and PostHog is on the free tier. Haiku keeps the AI cost far below the coin prize budget; Build 4 will compare Haiku and Opus on question accuracy before deciding whether Opus is worth ~35× the cost.</p>
+
+<h3>Non-goals (v2)</h3>
+<ol>
+ <li><b>No real money.</b> Coins have no cash value; no payments, cash prizes or paid real-money entry.</li>
+ <li><b>No real accounts or store integration yet.</b> A player is a name in the browser; referrals, purchases and photo uploads are simulated.</li>
+ <li><b>No full admin panel yet.</b> The admin is a sketch without login; full brand admin and multi-brand support come in Build 3.</li>
+ <li><b>One game only.</b> The quiz is the only game; other games (spin, scratch and so on) stay out until the quiz loop is proven.</li>
+</ol>
+<p>Pending work for later builds is tracked in <a href="https://github.com/building-with-ai-f26/yg1821-gamifiedecomm/blob/main/BACKLOG.md">BACKLOG.md</a>.</p>
+</section>
+
+<section id="app2">
+<h2>Build 2 app (runs locally)</h2>
+<p>The working app runs on my laptop for pod testing. The public <a href="prototype.html">Build 1 prototype</a> stays online as a static demo.</p>
+<pre style="background:#16161d;color:#f1f1f1;padding:14px;border-radius:10px;overflow:auto;font-size:13px">git clone https://github.com/building-with-ai-f26/yg1821-gamifiedecomm.git
+cd yg1821-gamifiedecomm &amp;&amp; npm install
+cp .env.example .env    # add ANTHROPIC_API_KEY
+npm start               # player app: localhost:3000 · brand admin: localhost:3000/admin</pre>
+<div id="app2-shots"><p class="fill">Screenshot of the AI quiz: added after the first real AI test.</p></div>
+</section>
+
 <section id="prd">
-<h2>PRD v1</h2>
+<h2>PRD v1 <span class="badge">Build 1 · Nov 8, 2026</span></h2>
 
 <h3>Problem</h3>
 <p>Small D2C brands pay for every first order through ads, then struggle to get the second order, reviews and referrals. Their loyalty points are a number in an account page that customers forget. Customers have no reason to come back between purchases and no visible reward for recommending products they already like.</p>
@@ -104,7 +198,7 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 </section>
 
 <section id="prototype">
-<h2>Prototype</h2>
+<h2>Build 1 prototype</h2>
 <p>A single HTML file that runs locally in any browser with fake data and no backend. It's built to test the flow, not the architecture.</p>
 <a class="btn" href="prototype.html">Open the prototype →</a>
 <div class="gallery" style="margin-top:18px">
@@ -143,6 +237,13 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <section id="log">
 <h2>Build log</h2>
 <table class="log">
+<tr><td>Build 2<br>Nov 14–15</td><td>
+ <p><b>What works:</b> a local app (Node server + Claude API) with an <b>AI-written quiz</b> in each contest: 5 questions per play, up to 5 plays, no repeated questions, answers checked on the server, points added to that contest's leaderboard. Points are now per contest and coins are the wallet (prizes and Rewards Shop). Players can join up to 5 contests; the Rewards Shop Earn tab credits every joined contest that scores an action. The contest page has Prizes, Leaderboard, Scoring and How to Play tabs; general leaderboards; a brand admin sketch (analytics, launch/edit contests, quiz settings, shop items, AI cost). PostHog runs on the Product Page, prototype and app with session replay and custom quiz events. AGENTS.md documents structure and run steps; BACKLOG.md tracks what's pending.</p>
+ <p><b>What I learned:</b> structured outputs make the AI reply dependable: the server always gets question, options, answer and explanation as JSON, so the quiz never breaks on a badly formatted reply. Keeping the answer key on the server matters as soon as a leaderboard has prizes. Giving the model only the brand catalog keeps brand questions factual, and starting with the cheapest model (Haiku 5.5) with the model name in <code>.env</code> makes switching to Opus a one-line change once evals show it's needed.</p>
+ <p><b>What broke / changed:</b> I first planned an AI review checker, then switched to the brand quiz because it tests engagement, the risk brands care about. Mid-build the points model changed: points per contest, coins only as prizes, which meant moving data to a small server so the admin and player pages share it. The prototype file came read-only from the zip; Python's local server couldn't read the Desktop folder (switched to Node); session replay looked off on localhost because the browser cached PostHog's settings for 5 minutes.</p>
+ <p><b>Costs:</b> Claude API for quiz generation: <span class="fill">measured cost after first test</span> (Claude Haiku 5.5, about $0.001 per quiz expected). Agent usage covered by my Claude Pro subscription ($20/month). PostHog free tier; GitHub Pages free.</p>
+ <p><b>Hours:</b> <span class="fill">add Build 2 hours</span>.</p>
+</td></tr>
 <tr><td>Build 1<br>Nov 7–8</td><td>
  <p><b>What works:</b> contest lobby with three entry types (free, coin entry, VIP pass unlocked by tier or a shop pass); per-product dropdown actions (review with a 30-word check, photo, star rating, referral link, buy with coupon); coins credit to the wallet and every joined contest; My Contests with "coins to next tier"; per-contest leaderboard with rank-wise prizes; rewarded-ad flow with a 5/day cap; reward shop issuing CRX- coupons; wallet history.</p>
  <p><b>What I learned:</b> the agent builds fastest from a concrete reference. Pointing it at the live Credexon 2.0 lobby gave the real scoring values and contest model in one pass, where describing it in words took three rounds. Defining one core workflow first made it obvious which screens are supporting rather than core.</p>
