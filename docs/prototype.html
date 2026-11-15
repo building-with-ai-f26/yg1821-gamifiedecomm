@@ -42,7 +42,17 @@ tr.you td{color:var(--gold);font-weight:700}
 .stars span{font-size:22px;cursor:pointer;color:var(--line)}.stars span.on{color:var(--gold)}
 .sm{padding:7px 12px;font-size:13px;margin-top:8px}.done{color:var(--ok);font-size:13px;margin-top:6px}
 @media(max-width:760px){.app{flex-direction:column}aside{width:auto}.nav{display:flex;overflow-x:auto;gap:4px}.nav button{white-space:nowrap;width:auto}.sec{display:none}main{padding:16px}}
-</style></head><body>
+</style>
+<!-- PostHog analytics: public project token only (safe in client code). Captures pageviews, clicks and session replay. -->
+<script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="Eh Rh Ph Oh Lh qh init yd bd dd fd Sd wc md xd ad Ed Ad Rd Pd Od Fd capture getExtension gr pd gd calculateEventProperties Ld register register_once register_for_session unregister unregister_for_session zd hd jd getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys onActiveMatchingSurveysChanged renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Hd identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset Ud shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty qd Td createPersonProfile setInternalOrTestUser Bd Uh zh opt_in_capturing opt_out_capturing Hh has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing $d debug kc Ls getPageViewId captureTraceFeedback captureTraceMetric rd".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_vKDL4PoNgj9FzDe9bBEiaUeBFnPtgeJvpPrHBBcvzRqf', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2026-05-30',
+        person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+    })
+</script>
+</head><body>
 <div class="toast" id="toast"></div>
 <div class="modal" id="admodal"><div class="card"><div style="font-size:40px">📺</div><b>GlowCart Winter Collection</b><p class="mut">Rewarded video · watch to earn</p><div class="bar"><i id="adbar"></i></div><p class="mut" id="adtxt">Playing…</p></div></div>
 
@@ -285,4 +295,6 @@ tasks.splice(0,tasks.length,...tasks.filter(t=>!["text","photo","rate","buy","fi
  {id:"goprod",cat:"Products",t:"Review, rate, refer or buy a product",d:"Open any product's dropdown · up to +78 coins per product",c:"→",go:1});
 const _d=doTask;doTask=function(id){if(id=="goprod")return go("products");_d(id)};
 render();
-</script></body></html>
+</script>
+<p style="text-align:center;font-size:12px;color:#888;margin:16px">This prototype uses PostHog analytics (pageviews, clicks and session recordings) for class user testing.</p>
+</body></html>
