@@ -1,10 +1,10 @@
-# [Project Name]
+# Credexon League
 
-> **One-line pitch:** [Who is this for, and what job does it do for them?]
+> **One-line pitch:** Brand-run points contests for shoppers: earn points with reviews, referrals, purchases and an AI-generated brand quiz, climb the leaderboard, and win coins to spend on the brand's products.
 
-- **Builder:** [Your Name] (`@github-handle`)
+- **Builder:** Yash (`yg1821-droid`)
 - **Pod:** [Pod Name / Number]
-- **Product Page & Living PRD:** [Add your GitHub Pages URL]
+- **Product Page & Living PRD:** https://building-with-ai-f26.github.io/yg1821-gamifiedecomm/
 - **App:** runs locally through Week 4; add a cloud URL in Build 5.
 
 ## Start here: Build 1
@@ -38,8 +38,13 @@ Create your PostHog account in Week 1. Install it on the Product Page and local 
 Clone **your own repository** and ask your coding agent to document the exact install and run commands here and in `AGENTS.md`.
 
 ```bash
-git clone https://github.com/building-with-ai-f26/<your-repo-name>.git
-cd <your-repo-name>
+git clone https://github.com/building-with-ai-f26/yg1821-gamifiedecomm.git
+cd yg1821-gamifiedecomm
+npm install
+cp .env.example .env   # then paste your ANTHROPIC_API_KEY into .env
+npm start              # player app: http://localhost:3000 · brand admin: http://localhost:3000/admin
 ```
+
+Needs Node.js 22 or newer. `npm run usage` prints AI tokens and cost per quiz. Pending work is tracked in [`BACKLOG.md`](./BACKLOG.md); agent instructions and the project structure are in [`AGENTS.md`](./AGENTS.md).
 
 If your app needs API keys, use a local environment file such as `.env`. Keep private keys out of source code, browser code, screenshots, and commits. The template ignores `.env`; `.env.example` contains placeholders only.
