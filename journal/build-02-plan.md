@@ -43,12 +43,21 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 
 ## 5. What it cost
 - **Agent spend:** $0 extra; Claude Code is covered by Claude Pro ($20/month).
-- **API runtime spend (quiz generation):** `$___`. Run `npm run usage` after testing and paste the total here.
-- **Cost per quiz (5 questions):** `$___` (expected under $0.001 on Haiku 5.5; measured value from `npm run usage`).
-- **Tokens per quiz:** `___ in / ___ out` (from `npm run usage`).
+- **API runtime spend (quiz generation):** $0.0086 for 8 test quizzes (Nov 15), from `npm run usage`.
+- **Cost per quiz (5 questions):** $0.0011 measured on Claude Haiku 5.5; 9.1 s average generation time; 0 failed calls.
+- **Tokens per quiz:** 934 in / 1,960 out on average (output includes the model's reasoning and 2 spare questions used to drop repeats).
 - **Hosting:** $0 (GitHub Pages free; app runs locally).
 - **Your hours spent this week:** `___ hrs`
 - **Cumulative project spend to date:** `$___`
+
+## 5b. Manual test results (Nov 15)
+- Answer key: my own answers matched the server's key 5/5 on the first quiz.
+- 5 plays by one player: 25 questions, 0 repeats; all answers checked and factually correct.
+- 6th play refused ("No quiz plays left (max 5)").
+- Leaderboard: player 1 moved #9 → #8 → #7 → #6 → #5; player 2 listed separately with their own points.
+- Brand quiz (VIP, hard): all 5 questions matched the GlowCart catalog; no invented facts.
+- Earn actions: points credited only to joined contests that score the action (quiz-only contest ignored reviews).
+- Small fix found while testing: points and plays behind the quiz results popup now update immediately.
 
 ## 6. Pod Critique Sign-off
 - **Tested by podmate(s):**

@@ -118,11 +118,11 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <table>
 <tr><th></th><th>Claude Haiku 5.5 (current)</th><th>Claude Opus 5.5 (option)</th></tr>
 <tr><td>Price per million tokens (in / out)</td><td>$0.10 / $0.50</td><td>$4 / $20</td></tr>
-<tr><td>One quiz (5 questions; ~1.2k tokens in, ~1.5k out incl. reasoning)</td><td>≈ $0.001</td><td>≈ $0.035</td></tr>
-<tr><td>One player, 5 plays in a contest</td><td>≈ $0.005</td><td>≈ $0.18</td></tr>
-<tr><td>1,000 players × 5 plays</td><td>≈ $4.50</td><td>≈ $175</td></tr>
+<tr><td>One quiz (5 questions; measured ~930 tokens in, ~1,960 out incl. reasoning)</td><td><b>$0.0011</b> (measured)</td><td>≈ $0.043 (estimated)</td></tr>
+<tr><td>One player, 5 plays in a contest</td><td>≈ $0.0055</td><td>≈ $0.21</td></tr>
+<tr><td>1,000 players × 5 plays</td><td>≈ $5.40</td><td>≈ $215</td></tr>
 </table>
-<p id="measured-cost"><b>Measured in Build 2 testing:</b> <span class="fill">pending first real AI test</span>. Hosting is $0 (GitHub Pages; the app runs locally) and PostHog is on the free tier. Haiku keeps the AI cost far below the coin prize budget; Build 4 will compare Haiku and Opus on question accuracy before deciding whether Opus is worth ~35× the cost.</p>
+<p id="measured-cost"><b>Measured in Build 2 testing (Nov 15):</b> 8 real quizzes on Claude Haiku 5.5 averaged <b>$0.0011 per quiz</b> (934 tokens in / 1,960 out) and <b>9.1 s</b> to generate; all testing cost <b>$0.0086</b> in total. 0 failed calls; 0 repeated questions across one player's 25 questions (5 plays); every answer key I checked was correct, including a brand quiz where all 5 hard questions matched the product catalog. Hosting is $0 (GitHub Pages; the app runs locally) and PostHog is on the free tier. Haiku keeps the AI cost far below the coin prize budget; Build 4 will compare Haiku and Opus on question accuracy before deciding whether Opus is worth ~40× the cost.</p>
 
 <h3>Non-goals (v2)</h3>
 <ol>
@@ -141,7 +141,10 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 cd yg1821-gamifiedecomm &amp;&amp; npm install
 cp .env.example .env    # add ANTHROPIC_API_KEY
 npm start               # player app: localhost:3000 · brand admin: localhost:3000/admin</pre>
-<div id="app2-shots"><p class="fill">Screenshot of the AI quiz: added after the first real AI test.</p></div>
+<div class="gallery" id="app2-shots">
+ <figure><img class="shot" src="img/quiz-question.jpg" alt="AI quiz question with the correct answer highlighted and an explanation"><figcaption>AI quiz: Claude-written question, answer checked by the server, one-line explanation (play 2 of 5)</figcaption></figure>
+ <figure><img class="shot" src="img/quiz-leaderboard.jpg" alt="Contest leaderboard after quiz plays"><figcaption>Leaderboard moves after each play: player 1 climbed from #13 to #5 across 5 plays</figcaption></figure>
+</div>
 </section>
 
 <section id="prd">
@@ -241,7 +244,7 @@ npm start               # player app: localhost:3000 · brand admin: localhost:3
  <p><b>What works:</b> a local app (Node server + Claude API) with an <b>AI-written quiz</b> in each contest: 5 questions per play, up to 5 plays, no repeated questions, answers checked on the server, points added to that contest's leaderboard. Points are now per contest and coins are the wallet (prizes and Rewards Shop). Players can join up to 5 contests; the Rewards Shop Earn tab credits every joined contest that scores an action. The contest page has Prizes, Leaderboard, Scoring and How to Play tabs; general leaderboards; a brand admin sketch (analytics, launch/edit contests, quiz settings, shop items, AI cost). PostHog runs on the Product Page, prototype and app with session replay and custom quiz events. AGENTS.md documents structure and run steps; BACKLOG.md tracks what's pending.</p>
  <p><b>What I learned:</b> structured outputs make the AI reply dependable: the server always gets question, options, answer and explanation as JSON, so the quiz never breaks on a badly formatted reply. Keeping the answer key on the server matters as soon as a leaderboard has prizes. Giving the model only the brand catalog keeps brand questions factual, and starting with the cheapest model (Haiku 5.5) with the model name in <code>.env</code> makes switching to Opus a one-line change once evals show it's needed.</p>
  <p><b>What broke / changed:</b> I first planned an AI review checker, then switched to the brand quiz because it tests engagement, the risk brands care about. Mid-build the points model changed: points per contest, coins only as prizes, which meant moving data to a small server so the admin and player pages share it. The prototype file came read-only from the zip; Python's local server couldn't read the Desktop folder (switched to Node); session replay looked off on localhost because the browser cached PostHog's settings for 5 minutes.</p>
- <p><b>Costs:</b> Claude API for quiz generation: <span class="fill">measured cost after first test</span> (Claude Haiku 5.5, about $0.001 per quiz expected). Agent usage covered by my Claude Pro subscription ($20/month). PostHog free tier; GitHub Pages free.</p>
+ <p><b>Costs:</b> Claude API for quiz generation: <b>$0.0086</b> for 8 test quizzes (Claude Haiku 5.5, $0.0011 per quiz, 9.1 s average). Agent usage covered by my Claude Pro subscription ($20/month). PostHog free tier; GitHub Pages free.</p>
  <p><b>Hours:</b> <span class="fill">add Build 2 hours</span>.</p>
 </td></tr>
 <tr><td>Build 1<br>Nov 7–8</td><td>

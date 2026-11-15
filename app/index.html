@@ -236,6 +236,7 @@ async function finishQuiz() {
   try {
     const r = await api("/api/quiz/finish", { quizId: QZ.quizId });
     track("quiz_completed", { contest_id: QZ.contestId, correct: r.correct, total: r.total, perfect: r.perfect, points: r.points });
+    refresh(); // update points, rank and plays behind the results popup
     const c = C(QZ.contestId);
     quizModal(`<h2 style="margin-top:0">${r.perfect ? "🏆 Perfect score!" : "Quiz complete"}</h2>
      <div class="stats"><div><b>${r.correct}/${r.total}</b>correct</div><div><b class="price">+${r.points}</b>points</div><div><b>${r.playsLeft}</b>plays left</div></div>
