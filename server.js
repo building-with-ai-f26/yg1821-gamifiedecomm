@@ -1,0 +1,642 @@
+// Credexon League — local server (Build 2)
+// Serves the player app (/) and the brand admin panel (/admin), stores demo data in data/db.json,
+// and generates contest quiz questions with Claude via the official Anthropic SDK.
+// Run: npm start   (reads ANTHROPIC_API_KEY and ANTHROPIC_MODEL from .env)
+
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const APP_DIR = path.join(ROOT, "app");
+const DATA_DIR = path.join(ROOT, "data");
+const DB_FILE = path.join(DATA_DIR, "db.json");
+const PORT = Number(process.env.PORT) || 3000;
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+
+// USD per million tokens [input, output]. Used to show cost per quiz in the admin panel.
+const PRICES = {
+  "claude-haiku-5-5": [0.1, 0.5],
+  "claude-sonnet-5-5": [2, 10],
+  "claude-opus-5-5": [4, 20],
+};
+
+const MAX_ACTIVE_CONTESTS = 5; // a player can be in at most 5 live contests at once
+const WELCOME_COINS = 500; // demo starting balance so the Rewards Shop and coin-entry contests are usable
+
+// Point rules a contest can switch on. 0 = this contest doesn't score that action.
+const ACTIONS = {
+  review: "Text review (30+ words)",
+  photo: "Photo review",
+  rating: "Star rating",
+  referral: "Friend signs up via your link",
+  purchase: "Purchase with brand coupon",
+  quiz_correct: "Quiz: each correct answer",
+  quiz_perfect: "Quiz: perfect-score bonus",
+};
+
+const TOPICS = {
+  brand: "Brand: GlowCart products",
+  ecommerce: "E-commerce & online shopping",
+  electronics: "Consumer electronics",
+  random: "Random general knowledge",
+};
+const DIFFICULTIES = ["easy", "medium", "hard", "mixed"];
+
+// ---------- Seed data (fictional brand) ----------
+function seed() {
+  const day = 86400000;
+  const now = Date.now();
+  const rivals = (scale) =>
+    [["vishal", 640], ["Priya S", 585], ["god10", 520], ["Arjun M", 470], ["Neha K", 410], ["Rohan D", 355],
+     ["Aisha T", 290], ["Kabir V", 240], ["Meera J", 180], ["Dev P", 130], ["Sana R", 85], ["Ishaan G", 40]]
+      .map(([name, pts]) => ({ name, points: Math.round(pts * scale), seeded: true }));
+  return {
+    brand: { name: "GlowCart", category: "Beauty & lifestyle" },
+    products: [
+      { id: "p1", name: "Winter Glow Serum", emoji: "🧴", price: 1299, category: "Skincare", details: "30 ml vitamin C and hyaluronic acid serum for dull winter skin; use 2–3 drops every morning before moisturiser; suitable for all skin types; fragrance-free." },
+      { id: "p2", name: "Velvet Lip Tint", emoji: "💄", price: 599, category: "Makeup", details: "Matte-finish lip tint in 6 shades; infused with shea butter; lasts up to 8 hours; vegan and cruelty-free." },
+      { id: "p3", name: "Cashmere Scarf", emoji: "🧣", price: 2499, category: "Accessories", details: "100% cashmere, 180 × 30 cm; available in camel, charcoal and blush; hand-wash cold only." },
+      { id: "p4", name: "Hydra Night Cream", emoji: "🌙", price: 899, category: "Skincare", details: "50 ml overnight cream with ceramides and niacinamide; apply as the last step of a night routine; non-comedogenic." },
+      { id: "p5", name: "Glow Tote Bag", emoji: "👜", price: 1799, category: "Accessories", details: "Recycled-canvas tote with an inner zip pocket and a laptop sleeve that fits up to 14-inch laptops." },
+      { id: "p6", name: "Rose Hand Balm", emoji: "🌹", price: 349, category: "Body care", details: "75 ml hand balm with rosehip oil and glycerin; non-greasy; travel-size tube." },
+    ],
+    productStats: {
+      p1: { reviews: 14, ratings: [5, 5, 4, 5, 4, 5], purchases: 22 },
+      p2: { reviews: 21, ratings: [4, 5, 4, 4, 3, 5, 4], purchases: 35 },
+      p3: { reviews: 6, ratings: [5, 4, 5], purchases: 9 },
+      p4: { reviews: 11, ratings: [4, 4, 5, 3], purchases: 17 },
+      p5: { reviews: 8, ratings: [4, 5, 4], purchases: 12 },
+      p6: { reviews: 17, ratings: [5, 5, 5, 4, 5], purchases: 41 },
+    },
+    shop: [
+      { id: "s1", name: "₹250 GlowCart Voucher", category: "Coupons", emoji: "🎫", cost: 300, stock: 100 },
+      { id: "s2", name: "15% off next order", category: "Coupons", emoji: "🏷️", cost: 150, stock: 200 },
+      { id: "s3", name: "Free shipping for 3 months", category: "Coupons", emoji: "🚚", cost: 200, stock: 100 },
+      { id: "s4", name: "Velvet Lip Tint", category: "Products", emoji: "💄", cost: 450, stock: 25 },
+      { id: "s5", name: "Winter Skincare Kit", category: "Products", emoji: "🧴", cost: 900, stock: 10 },
+      { id: "s6", name: "Glow Tote Bag", category: "Products", emoji: "👜", cost: 600, stock: 15 },
+      { id: "s7", name: "VIP Contest Entry Pass", category: "Passes", emoji: "🏆", cost: 400, stock: 50, grantsPass: true },
+    ],
+    contests: [
+      {
+        id: "winter", name: "GlowCart Winter League", tag: "FREE ENTRY · 30 days", status: "live", endsAt: now + 12 * day,
+        desc: "Season-long. Earn points for reviews, referrals, purchases and the daily quiz. Top players win coins.",
+        entry: { type: "free", fee: 0 },
+        prizes: [{ upTo: 1, coins: 1000, note: "+ Winter Hamper" }, { upTo: 2, coins: 600 }, { upTo: 3, coins: 400 }, { upTo: 10, coins: 150 }],
+        scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 },
+        quiz: { enabled: true, topic: "brand", difficulty: "mixed", questions: 5, maxPlays: 5 },
+        seedPlayers: rivals(1),
+      },
+      {
+        id: "trivia", name: "GlowCart Trivia Cup", tag: "FREE ENTRY · Quiz only · 7 days", status: "live", endsAt: now + 5 * day,
+        desc: "Pure quiz contest. Answer AI-generated questions; only quiz points count.",
+        entry: { type: "free", fee: 0 },
+        prizes: [{ upTo: 1, coins: 1000 }, { upTo: 2, coins: 500 }, { upTo: 3, coins: 250 }],
+        scoring: { review: 0, photo: 0, rating: 0, referral: 0, purchase: 0, quiz_correct: 10, quiz_perfect: 25 },
+        quiz: { enabled: true, topic: "random", difficulty: "medium", questions: 5, maxPlays: 5 },
+        seedPlayers: rivals(0.35),
+      },
+      {
+        id: "weekend", name: "Weekend Sprint", tag: "50-COIN ENTRY · 3 days", status: "live", endsAt: now + 2 * day,
+        desc: "Short and competitive. Pay 50 coins to enter; bigger prizes for the top 10. Reviews and purchases only.",
+        entry: { type: "coins", fee: 50 },
+        prizes: [{ upTo: 1, coins: 2500 }, { upTo: 2, coins: 1500 }, { upTo: 3, coins: 1000 }, { upTo: 10, coins: 300 }],
+        scoring: { review: 15, photo: 20, rating: 5, referral: 0, purchase: 40, quiz_correct: 0, quiz_perfect: 0 },
+        quiz: { enabled: false, topic: "ecommerce", difficulty: "easy", questions: 5, maxPlays: 5 },
+        seedPlayers: rivals(0.4),
+      },
+      {
+        id: "vip", name: "VIP Insiders Cup", tag: "VIP PASS · invite only", status: "live", endsAt: now + 6 * day,
+        desc: "For VIP pass holders (buy one in the Rewards Shop). Hard quiz on GlowCart products.",
+        entry: { type: "pass", fee: 0 },
+        prizes: [{ upTo: 1, coins: 3000, note: "+ Full Spring collection" }, { upTo: 2, coins: 1500 }, { upTo: 3, coins: 1000 }],
+        scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 15, quiz_perfect: 40 },
+        quiz: { enabled: true, topic: "brand", difficulty: "hard", questions: 5, maxPlays: 3 },
+        seedPlayers: rivals(0.7),
+      },
+    ],
+    users: {},
+    events: [],
+    aiUsage: [],
+  };
+}
+
+// ---------- Storage ----------
+let db;
+function load() {
+  try { db = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); }
+  catch { db = seed(); save(); }
+}
+function save() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
+load();
+
+const quizzes = new Map(); // quizId -> live quiz incl. answer key (kept server-side so players can't see answers)
+
+// ---------- Helpers ----------
+class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
+const fail = (status, msg) => { throw new HttpError(status, msg); };
+const contestById = (id) => db.contests.find((c) => c.id === id) || fail(404, "Contest not found");
+function userByName(name) {
+  const u = db.users[String(name || "").trim().toLowerCase()];
+  return u || fail(401, "Please register first");
+}
+function log(type, data = {}) {
+  db.events.push({ t: Date.now(), type, ...data });
+  if (db.events.length > 5000) db.events.splice(0, db.events.length - 5000);
+}
+function activeJoins(u) {
+  return Object.keys(u.joined).filter((id) => db.contests.find((c) => c.id === id && c.status === "live"));
+}
+function standings(c) {
+  const real = Object.values(db.users)
+    .filter((u) => u.joined[c.id])
+    .map((u) => ({ name: u.name, points: u.joined[c.id].points, user: u.key }));
+  return [...c.seedPlayers.map((p) => ({ name: p.name, points: p.points })), ...real]
+    .sort((a, b) => b.points - a.points)
+    .map((p, i) => ({ ...p, rank: i + 1, prize: prizeFor(c, i + 1) }));
+}
+function prizeFor(c, rank) {
+  const p = c.prizes.find((x) => rank <= x.upTo);
+  return p ? { coins: p.coins, note: p.note || "" } : null;
+}
+function credit(u, c, points, reason) {
+  u.joined[c.id].points += points;
+  u.stats.pointsEarned += points;
+  log("points", { user: u.key, contestId: c.id, points, reason });
+}
+function publicUser(u) {
+  if (!u) return null;
+  const joined = Object.fromEntries(Object.entries(u.joined).map(([id, j]) => {
+    const c = db.contests.find((x) => x.id === id);
+    const rank = c ? standings(c).findIndex((p) => p.user === u.key) + 1 : null;
+    return [id, { ...j, rank }];
+  }));
+  return { name: u.name, coins: u.coins, joined, stats: u.stats, coupons: u.coupons, hasVipPass: u.hasVipPass, done: u.done, history: u.history.slice(0, 50) };
+}
+function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0; }
+function costOf(model, usage) {
+  const p = PRICES[model];
+  if (!p || !usage) return null;
+  return (usage.input_tokens * p[0] + usage.output_tokens * p[1]) / 1e6;
+}
+
+// ---------- AI quiz generation ----------
+const QuizSchema = z.object({
+  questions: z.array(z.object({
+    question: z.string(),
+    options: z.array(z.string()),
+    correct_index: z.number().int(),
+    explanation: z.string(),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+  })),
+});
+
+const TOPIC_RULES = {
+  brand: (cat) => `Topic: the brand GlowCart and its products. Use ONLY facts stated in this product catalog. Never invent ingredients, sizes, prices, shades or claims that are not in it.\nCatalog (JSON):\n${JSON.stringify(cat)}`,
+  ecommerce: () => "Topic: e-commerce and online shopping in general (payments, delivery, returns, coupons, marketplaces, online-shopping history and well-known terms). Only use facts that are widely established and not likely to change.",
+  electronics: () => "Topic: consumer electronics (phones, laptops, audio, chargers, displays, common specs and terms). Only use facts that are widely established and not likely to change; avoid current prices and model launch rumours.",
+  random: () => "Topic: a random mix of family-friendly general knowledge (science, geography, food, sport, pop culture). Only use well-established facts.",
+};
+const DIFFICULTY_RULES = {
+  easy: "All questions easy: most shoppers would know the answer.",
+  medium: "All questions medium: needs some knowledge or careful reading.",
+  hard: "All questions hard: needs close knowledge, but must still have one clearly correct answer.",
+  mixed: "Mix difficulties: roughly 2 easy, 2 medium and 1 hard (scale proportionally).",
+};
+
+let client = null;
+function claude() {
+  if (!process.env.ANTHROPIC_API_KEY) fail(503, "AI quiz is not set up yet: add ANTHROPIC_API_KEY to the .env file and restart the server.");
+  client ??= new Anthropic();
+  return client;
+}
+
+async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = null, purpose = "play" }) {
+  const anthropic = claude();
+  const system = [
+    "You write multiple-choice quiz questions for a shopping-rewards contest app. Players earn contest points for correct answers, so every question must be accurate and fair.",
+    "Rules: exactly 4 answer options per question, exactly one correct; no 'all/none of the above'; no trick wording; keep each question under 25 words and each option under 8 words; explanation is one short sentence (under 25 words) saying why the answer is right.",
+    "Set each question's difficulty field honestly.",
+  ].join("\n");
+  const userMsg = [
+    TOPIC_RULES[topic](db.products.map(({ name, price, category, details }) => ({ name, price_inr: price, category, details }))),
+    DIFFICULTY_RULES[difficulty],
+    // Ask for 2 spares so we can drop any duplicates of questions this player has already seen.
+    `Write exactly ${count + 2} questions, all different from each other.`,
+    avoid.length ? `Do not repeat or closely paraphrase these questions the player has already seen:\n- ${avoid.join("\n- ")}` : "",
+  ].filter(Boolean).join("\n\n");
+
+  const started = Date.now();
+  const record = { t: started, model: MODEL, purpose, contestId, topic, difficulty, count, ok: false };
+  try {
+    const response = await anthropic.messages.parse({
+      model: MODEL,
+      max_tokens: 8000,
+      system,
+      messages: [{ role: "user", content: userMsg }],
+      output_config: { format: zodOutputFormat(QuizSchema) },
+    });
+    Object.assign(record, {
+      ms: Date.now() - started,
+      input_tokens: response.usage?.input_tokens ?? 0,
+      output_tokens: response.usage?.output_tokens ?? 0,
+      costUSD: costOf(MODEL, response.usage),
+      stop_reason: response.stop_reason,
+    });
+    if (response.stop_reason === "refusal") fail(502, "The AI declined to write this quiz. Try a different topic.");
+    if (response.stop_reason === "max_tokens") fail(502, "The AI response was cut off. Please try again.");
+    const parsed = response.parsed_output;
+    if (!parsed) fail(502, "The AI returned questions in an unexpected format. Please try again.");
+    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const seen = new Set(avoid.map(norm));
+    const questions = parsed.questions
+      .filter((q) => q.options.length === 4 && q.correct_index >= 0 && q.correct_index < 4 && new Set(q.options).size === 4)
+      .filter((q) => { const k = norm(q.question); if (seen.has(k)) return false; seen.add(k); return true; }) // no repeats
+      .slice(0, count)
+      .map((q) => {
+        // Shuffle options server-side so the correct answer isn't always in the same position.
+        const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+        return { question: q.question, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct_index), explanation: q.explanation, difficulty: q.difficulty };
+      });
+    if (questions.length < count) fail(502, "The AI returned too few valid questions. Please try again.");
+    record.ok = true;
+    return questions;
+  } catch (err) {
+    record.ms ??= Date.now() - started;
+    if (err instanceof HttpError) { record.error = err.message; throw err; }
+    let msg = "The AI service is unavailable right now. Please try again.";
+    if (err instanceof Anthropic.AuthenticationError) msg = "The Anthropic API key was rejected. Check ANTHROPIC_API_KEY in .env.";
+    else if (err instanceof Anthropic.PermissionDeniedError) msg = "This API key can't use the selected model. Check ANTHROPIC_MODEL in .env.";
+    else if (err instanceof Anthropic.NotFoundError) msg = `Model "${MODEL}" was not found. Check ANTHROPIC_MODEL in .env.`;
+    else if (err instanceof Anthropic.RateLimitError) msg = "Too many quiz requests right now. Wait a moment and try again.";
+    else if (err instanceof Anthropic.BadRequestError) msg = /credit|billing/i.test(err.message) ? "Your Anthropic account is out of API credit. Add credit in the Console billing page." : "The quiz request was rejected by the AI service.";
+    else if (err instanceof Anthropic.APIConnectionError) msg = "Couldn't reach the AI service. Check your internet connection.";
+    record.error = msg;
+    console.error("[quiz] generation failed:", err?.status ?? "", err?.message ?? err);
+    throw new HttpError(502, msg);
+  } finally {
+    db.aiUsage.push(record);
+    save();
+  }
+}
+
+// ---------- Player API ----------
+const routes = {
+  "GET /api/state": (q) => {
+    const me = q.user ? db.users[q.user.trim().toLowerCase()] : null;
+    return {
+      brand: db.brand,
+      actions: ACTIONS,
+      topics: TOPICS,
+      maxActiveContests: MAX_ACTIVE_CONTESTS,
+      model: MODEL,
+      contests: db.contests.map((c) => ({
+        ...c, seedPlayers: undefined, players: standings(c).length, leaderboard: standings(c),
+      })),
+      products: db.products.map((p) => {
+        const s = db.productStats[p.id];
+        return { ...p, reviews: s.reviews, avgRating: Math.round(avg(s.ratings) * 10) / 10, ratingCount: s.ratings.length, purchases: s.purchases };
+      }),
+      shop: db.shop,
+      me: publicUser(me),
+      general: generalLeaderboard(),
+    };
+  },
+
+  "POST /api/register": (_, b) => {
+    const name = String(b.name || "").trim().slice(0, 24);
+    if (!name) fail(400, "Enter a name");
+    const key = name.toLowerCase();
+    if (!db.users[key]) {
+      db.users[key] = {
+        key, name, coins: WELCOME_COINS, joined: {}, coupons: [], hasVipPass: false, done: {}, seen: {},
+        stats: { quizPlays: 0, quizCorrect: 0, reviews: 0, ratings: 0, referrals: 0, purchases: 0, pointsEarned: 0, coinsEarned: WELCOME_COINS, coinsSpent: 0, contestsJoined: 0 },
+        history: [{ t: Date.now(), what: "Welcome bonus", coins: WELCOME_COINS }],
+        createdAt: Date.now(),
+      };
+      log("registered", { user: key });
+      save();
+    }
+    return publicUser(db.users[key]);
+  },
+
+  "POST /api/join": (_, b) => {
+    const u = userByName(b.user), c = contestById(b.contestId);
+    if (c.status !== "live") fail(400, "This contest has ended");
+    if (u.joined[c.id]) return publicUser(u);
+    if (activeJoins(u).length >= MAX_ACTIVE_CONTESTS) fail(400, `You can be in at most ${MAX_ACTIVE_CONTESTS} live contests at a time`);
+    if (c.entry.type === "pass" && !u.hasVipPass) fail(400, "Needs a VIP Contest Entry Pass from the Rewards Shop");
+    if (c.entry.type === "coins") {
+      if (u.coins < c.entry.fee) fail(400, `Need ${c.entry.fee} coins to enter`);
+      u.coins -= c.entry.fee; u.stats.coinsSpent += c.entry.fee;
+      u.history.unshift({ t: Date.now(), what: `Entry fee: ${c.name}`, coins: -c.entry.fee });
+    }
+    u.joined[c.id] = { points: 0, plays: 0, bestQuiz: null, joinedAt: Date.now() };
+    u.stats.contestsJoined++;
+    log("joined", { user: u.key, contestId: c.id, fee: c.entry.type === "coins" ? c.entry.fee : 0 });
+    save();
+    return publicUser(u);
+  },
+
+  // Rewards Shop "Earn" actions: points go to every joined live contest that scores this action.
+  "POST /api/action": (_, b) => {
+    const u = userByName(b.user);
+    const type = b.type;
+    if (!["review", "photo", "rating", "referral", "purchase"].includes(type)) fail(400, "Unknown action");
+    const p = db.products.find((x) => x.id === b.productId) || fail(404, "Product not found");
+    const doneKey = `${type}:${p.id}`;
+    if (["review", "photo", "rating"].includes(type) && u.done[doneKey]) fail(400, "Already done for this product");
+    if (type === "review") {
+      const words = String(b.text || "").trim().split(/\s+/).filter(Boolean).length;
+      if (words < 30) fail(400, `Reviews need 30+ words (you wrote ${words})`);
+      db.productStats[p.id].reviews++; u.stats.reviews++;
+    }
+    if (type === "rating") {
+      const stars = Number(b.stars);
+      if (!(stars >= 1 && stars <= 5)) fail(400, "Pick 1–5 stars");
+      db.productStats[p.id].ratings.push(stars); u.stats.ratings++;
+    }
+    if (type === "referral") u.stats.referrals++;
+    if (type === "purchase") { db.productStats[p.id].purchases++; u.stats.purchases++; }
+    u.done[doneKey] = (u.done[doneKey] || 0) + 1;
+
+    const credited = [];
+    for (const id of activeJoins(u)) {
+      const c = contestById(id);
+      const pts = c.scoring[type] || 0;
+      if (pts > 0) { credit(u, c, pts, `${ACTIONS[type]}: ${p.name}`); credited.push({ contestId: c.id, contest: c.name, points: pts }); }
+    }
+    log("action", { user: u.key, action: type, productId: p.id, credited: credited.length });
+    save();
+    return { me: publicUser(u), credited };
+  },
+
+  "POST /api/quiz/start": async (_, b) => {
+    const u = userByName(b.user), c = contestById(b.contestId);
+    const j = u.joined[c.id] || fail(400, "Join this contest first");
+    if (c.status !== "live") fail(400, "This contest has ended");
+    if (!c.quiz.enabled) fail(400, "This contest has no quiz");
+    if (j.plays >= c.quiz.maxPlays) fail(400, `No quiz plays left (max ${c.quiz.maxPlays})`);
+    const avoid = (u.seen[c.id] || []).slice(-60); // every question this player saw in this contest (5 plays x 5 = 25)
+    const questions = await generateQuiz({ topic: c.quiz.topic, difficulty: c.quiz.difficulty, count: c.quiz.questions, avoid, contestId: c.id });
+    // A play is used only once questions were generated successfully.
+    j.plays++; u.stats.quizPlays++;
+    u.seen[c.id] = [...(u.seen[c.id] || []), ...questions.map((q) => q.question)].slice(-60);
+    const id = crypto.randomUUID();
+    quizzes.set(id, { id, user: u.key, contestId: c.id, questions, answers: [], finished: false });
+    log("quiz_started", { user: u.key, contestId: c.id, play: j.plays });
+    save();
+    return {
+      quizId: id, play: j.plays, maxPlays: c.quiz.maxPlays, topic: TOPICS[c.quiz.topic], difficulty: c.quiz.difficulty,
+      pointsPerCorrect: c.scoring.quiz_correct, perfectBonus: c.scoring.quiz_perfect,
+      questions: questions.map(({ question, options, difficulty }) => ({ question, options, difficulty })),
+    };
+  },
+
+  "POST /api/quiz/answer": (_, b) => {
+    const qz = quizzes.get(b.quizId) || fail(404, "Quiz not found or expired");
+    const i = Number(b.index), choice = Number(b.choice);
+    const q = qz.questions[i] || fail(400, "Bad question");
+    if (qz.answers[i] !== undefined) fail(400, "Already answered");
+    qz.answers[i] = choice;
+    const correct = choice === q.correct;
+    log("quiz_answer", { user: qz.user, contestId: qz.contestId, correct });
+    return { correct, correctIndex: q.correct, explanation: q.explanation };
+  },
+
+  "POST /api/quiz/finish": (_, b) => {
+    const qz = quizzes.get(b.quizId) || fail(404, "Quiz not found or expired");
+    if (qz.finished) fail(400, "Quiz already finished");
+    qz.finished = true;
+    const u = db.users[qz.user], c = contestById(qz.contestId), j = u.joined[c.id];
+    const correct = qz.questions.filter((q, i) => qz.answers[i] === q.correct).length;
+    const total = qz.questions.length;
+    const perfect = correct === total;
+    const points = correct * (c.scoring.quiz_correct || 0) + (perfect ? c.scoring.quiz_perfect || 0 : 0);
+    if (points > 0) credit(u, c, points, `Quiz: ${correct}/${total} correct${perfect ? " (perfect!)" : ""}`);
+    u.stats.quizCorrect += correct;
+    j.bestQuiz = Math.max(j.bestQuiz ?? 0, correct);
+    log("quiz_completed", { user: u.key, contestId: c.id, correct, total, points });
+    quizzes.delete(qz.id);
+    save();
+    return { correct, total, perfect, points, playsLeft: c.quiz.maxPlays - j.plays, me: publicUser(u) };
+  },
+
+  "POST /api/redeem": (_, b) => {
+    const u = userByName(b.user);
+    const item = db.shop.find((x) => x.id === b.itemId) || fail(404, "Item not found");
+    if (item.stock <= 0) fail(400, "Out of stock");
+    if (u.coins < item.cost) fail(400, `Need ${item.cost - u.coins} more coins`);
+    u.coins -= item.cost; u.stats.coinsSpent += item.cost; item.stock--;
+    const code = "CRX-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+    u.coupons.unshift({ code, name: item.name, t: Date.now() });
+    if (item.grantsPass) u.hasVipPass = true;
+    u.history.unshift({ t: Date.now(), what: `Redeemed: ${item.name}`, coins: -item.cost });
+    log("redeemed", { user: u.key, itemId: item.id, coins: item.cost });
+    save();
+    return { me: publicUser(u), code };
+  },
+};
+
+function generalLeaderboard() {
+  const users = Object.values(db.users);
+  const top = (fn, n = 5) => users.map((u) => ({ name: u.name, value: fn(u) })).filter((x) => x.value > 0).sort((a, b) => b.value - a.value).slice(0, n);
+  const prods = db.products.map((p) => ({ name: `${p.emoji} ${p.name}`, s: db.productStats[p.id] }));
+  return {
+    mostPoints: top((u) => u.stats.pointsEarned),
+    mostQuizPlays: top((u) => u.stats.quizPlays),
+    mostCoinsEarned: top((u) => u.stats.coinsEarned - WELCOME_COINS),
+    mostReviewedProducts: prods.map((p) => ({ name: p.name, value: p.s.reviews })).sort((a, b) => b.value - a.value),
+    topRatedProducts: prods.map((p) => ({ name: p.name, value: Math.round(avg(p.s.ratings) * 10) / 10, count: p.s.ratings.length })).sort((a, b) => b.value - a.value),
+  };
+}
+
+// ---------- Admin API (local demo: no login yet) ----------
+const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : d);
+
+Object.assign(routes, {
+  "GET /api/admin/overview": () => {
+    const users = Object.values(db.users);
+    const ev = db.events;
+    const count = (t) => ev.filter((e) => e.type === t).length;
+    const ai = db.aiUsage;
+    const okAi = ai.filter((a) => a.ok);
+    const quizDone = ev.filter((e) => e.type === "quiz_completed");
+    return {
+      model: MODEL,
+      aiReady: Boolean(process.env.ANTHROPIC_API_KEY),
+      totals: {
+        users: users.length,
+        liveContests: db.contests.filter((c) => c.status === "live").length,
+        joins: count("joined"),
+        quizPlays: count("quiz_started"),
+        avgQuizScore: quizDone.length ? Math.round((quizDone.reduce((s, e) => s + e.correct / e.total, 0) / quizDone.length) * 100) : null,
+        pointsAwarded: ev.filter((e) => e.type === "points").reduce((s, e) => s + e.points, 0),
+        coinsPaidOut: ev.filter((e) => e.type === "prize_paid").reduce((s, e) => s + e.coins, 0),
+        coinsRedeemed: ev.filter((e) => e.type === "redeemed").reduce((s, e) => s + e.coins, 0),
+        redemptions: count("redeemed"),
+        reviews: ev.filter((e) => e.type === "action" && e.action === "review").length,
+      },
+      contests: db.contests.map((c) => {
+        const ce = ev.filter((e) => e.contestId === c.id);
+        const lb = standings(c);
+        const firstReal = lb.find((p) => p.user);
+        return {
+          ...c, seedPlayers: undefined,
+          realPlayers: users.filter((u) => u.joined[c.id]).length,
+          quizPlays: ce.filter((e) => e.type === "quiz_started").length,
+          pointsAwarded: ce.filter((e) => e.type === "points").reduce((s, e) => s + e.points, 0),
+          coinsPaid: ce.filter((e) => e.type === "prize_paid").reduce((s, e) => s + e.coins, 0),
+          leader: lb[0], bestRealPlayer: firstReal || null,
+        };
+      }),
+      users: users.map((u) => ({ name: u.name, coins: u.coins, contests: Object.keys(u.joined).length, ...u.stats, joinedAt: u.createdAt }))
+        .sort((a, b) => b.pointsEarned - a.pointsEarned),
+      products: routes["GET /api/state"]({}).products,
+      shop: db.shop,
+      ai: {
+        calls: ai.length, ok: okAi.length, failed: ai.length - okAi.length,
+        totalCostUSD: okAi.reduce((s, a) => s + (a.costUSD || 0), 0),
+        avgCostUSD: okAi.length ? okAi.reduce((s, a) => s + (a.costUSD || 0), 0) / okAi.length : null,
+        avgMs: okAi.length ? Math.round(avg(okAi.map((a) => a.ms))) : null,
+        recent: ai.slice(-10).reverse(),
+      },
+      recentEvents: ev.slice(-25).reverse().map((e) => ({ ...e, user: e.user ? db.users[e.user]?.name ?? e.user : undefined })),
+      topics: TOPICS, difficulties: DIFFICULTIES, actions: ACTIONS,
+    };
+  },
+
+  // Create or update a contest (brand launches contests here).
+  "POST /api/admin/contest": (_, b) => {
+    const isNew = !b.id;
+    const c = isNew ? null : contestById(b.id);
+    const name = String(b.name || "").trim() || fail(400, "Contest needs a name");
+    const topic = TOPICS[b.quiz?.topic] ? b.quiz.topic : "brand";
+    const difficulty = DIFFICULTIES.includes(b.quiz?.difficulty) ? b.quiz.difficulty : "mixed";
+    const entryType = ["free", "coins", "pass"].includes(b.entry?.type) ? b.entry.type : "free";
+    const prizes = (Array.isArray(b.prizes) ? b.prizes : []).map((p) => ({ upTo: num(p.upTo, 1) || 1, coins: num(p.coins), note: String(p.note || "").slice(0, 60) }))
+      .filter((p) => p.coins > 0 || p.note).sort((a, x) => a.upTo - x.upTo);
+    const scoring = Object.fromEntries(Object.keys(ACTIONS).map((k) => [k, num(b.scoring?.[k])]));
+    const days = Math.min(90, Math.max(1, num(b.days, 7)));
+    const fields = {
+      name, desc: String(b.desc || "").slice(0, 200),
+      entry: { type: entryType, fee: entryType === "coins" ? num(b.entry?.fee, 50) : 0 },
+      prizes: prizes.length ? prizes : [{ upTo: 1, coins: 500 }],
+      scoring,
+      quiz: { enabled: Boolean(b.quiz?.enabled), topic, difficulty, questions: Math.min(10, Math.max(3, num(b.quiz?.questions, 5))), maxPlays: Math.min(20, Math.max(1, num(b.quiz?.maxPlays, 5))) },
+    };
+    fields.tag = `${entryType === "free" ? "FREE ENTRY" : entryType === "coins" ? `${fields.entry.fee}-COIN ENTRY` : "VIP PASS"} · ${days} days`;
+    if (isNew) {
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) + "-" + crypto.randomBytes(2).toString("hex");
+      db.contests.push({ id, status: "live", endsAt: Date.now() + days * 86400000, seedPlayers: [], ...fields });
+      log("contest_launched", { contestId: id });
+    } else {
+      Object.assign(c, fields);
+      if (b.days) c.endsAt = Date.now() + days * 86400000;
+      log("contest_updated", { contestId: c.id });
+    }
+    save();
+    return { ok: true };
+  },
+
+  // End a contest and pay coin prizes to real players by rank (seeded demo players hold ranks but get nothing).
+  "POST /api/admin/contest/end": (_, b) => {
+    const c = contestById(b.id);
+    if (c.status !== "live") fail(400, "Already ended");
+    const paid = [];
+    for (const p of standings(c)) {
+      if (!p.user || !p.prize?.coins) continue;
+      const u = db.users[p.user];
+      u.coins += p.prize.coins; u.stats.coinsEarned += p.prize.coins;
+      u.history.unshift({ t: Date.now(), what: `Prize: #${p.rank} in ${c.name}${p.prize.note ? " " + p.prize.note : ""}`, coins: p.prize.coins });
+      log("prize_paid", { user: u.key, contestId: c.id, rank: p.rank, coins: p.prize.coins });
+      paid.push({ name: u.name, rank: p.rank, coins: p.prize.coins });
+    }
+    c.status = "ended";
+    log("contest_ended", { contestId: c.id });
+    save();
+    return { paid };
+  },
+
+  "POST /api/admin/shop": (_, b) => {
+    const name = String(b.name || "").trim() || fail(400, "Item needs a name");
+    const fields = { name, category: String(b.category || "Products").slice(0, 20), emoji: String(b.emoji || "🎁").slice(0, 4), cost: num(b.cost, 100) || 1, stock: num(b.stock, 10), grantsPass: Boolean(b.grantsPass) };
+    if (b.id) Object.assign(db.shop.find((x) => x.id === b.id) || fail(404, "Item not found"), fields);
+    else db.shop.push({ id: "s" + crypto.randomBytes(3).toString("hex"), ...fields });
+    log(b.id ? "shop_item_updated" : "shop_item_added", { item: name });
+    save();
+    return { ok: true };
+  },
+
+  "POST /api/admin/shop/delete": (_, b) => {
+    const i = db.shop.findIndex((x) => x.id === b.id);
+    if (i < 0) fail(404, "Item not found");
+    log("shop_item_removed", { item: db.shop[i].name });
+    db.shop.splice(i, 1);
+    save();
+    return { ok: true };
+  },
+
+  // Let the brand preview what the AI writes for a topic/difficulty before launching.
+  "POST /api/admin/quiz-preview": async (_, b) => {
+    const topic = TOPICS[b.topic] ? b.topic : "brand";
+    const difficulty = DIFFICULTIES.includes(b.difficulty) ? b.difficulty : "mixed";
+    const questions = await generateQuiz({ topic, difficulty, count: Math.min(10, Math.max(3, num(b.questions, 5))), purpose: "admin_preview" });
+    return { questions };
+  },
+
+  "POST /api/admin/reset": () => { db = seed(); quizzes.clear(); save(); return { ok: true }; },
+});
+
+// ---------- HTTP server ----------
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (ch) => { data += ch; if (data.length > 100_000) { reject(new HttpError(413, "Request too large")); req.destroy(); } });
+    req.on("end", () => { try { resolve(data ? JSON.parse(data) : {}); } catch { reject(new HttpError(400, "Invalid JSON")); } });
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname.startsWith("/api/")) {
+    const handler = routes[`${req.method} ${url.pathname}`];
+    res.setHeader("Content-Type", "application/json");
+    if (!handler) { res.writeHead(404); return res.end(JSON.stringify({ error: "Not found" })); }
+    try {
+      const body = req.method === "POST" ? await readBody(req) : {};
+      const out = await handler(Object.fromEntries(url.searchParams), body);
+      res.writeHead(200); res.end(JSON.stringify(out));
+    } catch (err) {
+      const status = err instanceof HttpError ? err.status : 500;
+      if (status === 500) console.error(err);
+      res.writeHead(status); res.end(JSON.stringify({ error: status === 500 ? "Server error" : err.message }));
+    }
+    return;
+  }
+  let file = url.pathname === "/" ? "/index.html" : url.pathname === "/admin" ? "/admin.html" : url.pathname;
+  const full = path.join(APP_DIR, path.normalize(decodeURIComponent(file)));
+  if (!full.startsWith(APP_DIR + path.sep)) { res.writeHead(403); return res.end(); }
+  fs.readFile(full, (err, data) => {
+    if (err) { res.writeHead(404); return res.end("Not found"); }
+    res.writeHead(200, { "Content-Type": TYPES[path.extname(full)] || "application/octet-stream" });
+    res.end(data);
+  });
+});
+
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`Credexon League running:\n  Player app:  http://localhost:${PORT}\n  Brand admin: http://localhost:${PORT}/admin`);
+  console.log(`  AI quiz model: ${MODEL} (${process.env.ANTHROPIC_API_KEY ? "API key loaded" : "NO API KEY — add ANTHROPIC_API_KEY to .env"})`);
+});

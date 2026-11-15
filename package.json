@@ -1,0 +1,19 @@
+{
+  "name": "credexon-league",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Credexon League: brand-run points contests with an AI quiz, Rewards Shop and brand admin panel (local app).",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --watch --env-file-if-exists=.env server.js",
+    "usage": "node scripts/usage-report.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "zod": "^4.6.7"
+  }
+}

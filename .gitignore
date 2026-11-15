@@ -28,3 +28,6 @@ build/
 out/
 .DS_Store
 *.log
+
+# Local app data (demo database written by server.js)
+data/

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credexon Brand Admin</title>
+<style>
+:root{--bg:#0d0f1e;--side:#14162b;--card:#1b1e38;--line:#2b2f57;--txt:#f1f2fb;--mut:#9599c2;--gold:#ffc24b;--acc:#7c5cff;--ok:#34d399;--red:#f87171}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}
+.app{display:flex;min-height:100vh}
+aside{width:220px;background:var(--side);border-right:1px solid var(--line);padding:16px;flex-shrink:0}
+.logo{font-weight:800;font-size:16px;margin-bottom:4px}.logo span{background:var(--acc);border-radius:8px;padding:3px 7px;margin-right:6px}
+.sub{color:var(--mut);font-size:12px;margin-bottom:16px}
+.nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+.nav button.on,.nav button:hover{background:var(--card);color:var(--gold)}
+.side-foot{margin-top:18px;font-size:12px;color:var(--mut)}.side-foot a{color:var(--mut)}
+main{flex:1;padding:22px;max-width:1100px;min-width:0}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px}.mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;overflow-x:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.kpi small{color:var(--mut);display:block}.kpi b{font-size:22px;display:block;margin-top:4px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;background:var(--gold);color:#241700;cursor:pointer;font-size:13px}
+.btn.ghost{background:var(--line);color:var(--txt)}.btn.acc{background:var(--acc);color:#fff}.btn.danger{background:#5a1d1d;color:#ffd5d5}.btn:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mut);font-weight:500;font-size:12px;white-space:nowrap}
+.pill{background:var(--line);border-radius:12px;padding:2px 9px;font-size:11px;color:var(--mut);display:inline-block}
+.pill.live{background:#0f3d2c;color:var(--ok)}.pill.ended{background:#3d1717;color:var(--red)}.pill.bad{background:#3d1717;color:var(--red)}
+.screen{display:none}.screen.on{display:block}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+form .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+label{display:block;font-size:12px;color:var(--mut)}
+input,select,textarea{width:100%;margin-top:4px;background:#11132a;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font:inherit}
+input[type=checkbox]{width:auto;margin-right:6px}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}legend{color:var(--gold);font-weight:700;padding:0 6px}
+.toast{position:fixed;top:16px;right:16px;max-width:380px;background:var(--ok);color:#052a1b;padding:10px 16px;border-radius:10px;font-weight:700;display:none;z-index:20}
+.q{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}.q .ok{color:var(--ok);font-weight:700}
+.price{color:var(--gold);font-weight:800}
+@media(max-width:760px){.app{flex-direction:column}aside{width:auto}.nav{display:flex;overflow-x:auto;gap:4px}.nav button{white-space:nowrap;width:auto}main{padding:16px}}
+</style>
+</head><body>
+<div class="app">
+<aside>
+ <div class="logo"><span>CX</span>Brand Admin</div>
+ <div class="sub" id="brandsub">GlowCart</div>
+ <div class="pill" style="margin-bottom:12px">Build 2 sketch · full admin in Build 3</div>
+ <div class="nav">
+  <button data-s="overview" class="on" onclick="go('overview')">📊 Overview</button>
+  <button data-s="contests" onclick="go('contests')">🏅 Contests</button>
+  <button data-s="shop" onclick="go('shop')">🎁 Rewards Shop</button>
+  <button data-s="players" onclick="go('players')">👥 Players</button>
+  <button data-s="products" onclick="go('products')">🛍️ Products</button>
+  <button data-s="ai" onclick="go('ai')">🧠 AI quiz & cost</button>
+ </div>
+ <div class="side-foot"><a href="/">← Player app</a><br><br>Local demo: no admin login yet.<br><br><button class="btn danger" onclick="resetDemo()">Reset demo data</button></div>
+</aside>
+<main>
+
+<section class="screen on" id="s-overview">
+ <h1>📊 Overview</h1><p class="mut">How shoppers are engaging with your contests and Rewards Shop.</p>
+ <div class="kpis" id="kpis"></div>
+ <h2>Contests</h2><div class="card" id="ov-contests"></div>
+ <h2>Recent activity</h2><div class="card" id="ov-events"></div>
+</section>
+
+<section class="screen" id="s-contests">
+ <div class="row"><div><h1>🏅 Contests</h1><p class="mut">Launch contests, choose what earns points, and set the AI quiz.</p></div><button class="btn" onclick="editContest()">+ Launch new contest</button></div>
+ <div id="contestform"></div>
+ <div class="card" id="contesttable"></div>
+</section>
+
+<section class="screen" id="s-shop">
+ <div class="row"><div><h1>🎁 Rewards Shop</h1><p class="mut">Products and perks shoppers can redeem with coins.</p></div><button class="btn" onclick="editItem()">+ Add item</button></div>
+ <div id="itemform"></div>
+ <div class="card" id="shoptable"></div>
+</section>
+
+<section class="screen" id="s-players">
+ <h1>👥 Players</h1><p class="mut">Registered shoppers and what they've done.</p>
+ <div class="card" id="playertable"></div>
+</section>
+
+<section class="screen" id="s-products">
+ <h1>🛍️ Products</h1><p class="mut">Catalog used by the Rewards Shop Earn tab and by brand quizzes.</p>
+ <div class="card" id="producttable"></div>
+</section>
+
+<section class="screen" id="s-ai">
+ <h1>🧠 AI quiz & cost</h1><p class="mut" id="ai-sub"></p>
+ <div class="kpis" id="aikpis"></div>
+ <h2>Preview a quiz</h2>
+ <div class="card"><form onsubmit="previewQuiz(event)"><div class="grid">
+  <label>Topic<select id="pv-topic"></select></label>
+  <label>Difficulty<select id="pv-diff"></select></label>
+  <label>Questions<input id="pv-n" type="number" min="3" max="10" value="5"></label>
+  <label>&nbsp;<button class="btn acc" id="pv-btn" style="width:100%">Generate preview</button></label></div></form>
+  <div id="pv-out"></div></div>
+ <h2>Recent AI calls</h2><div class="card" id="aicalls"></div>
+</section>
+</main></div>
+<div class="toast" id="toast"></div>
+
+<script>
+let O = null, editingContest = null, editingItem = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n || 0).toLocaleString();
+const usd = (n) => n == null ? "—" : "$" + (n < 0.01 ? n.toFixed(5) : n.toFixed(3));
+const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : s < 86400 ? `${Math.round(s / 3600)}h ago` : `${Math.round(s / 86400)}d ago`; };
+function toast(msg, bad) { const t = $("toast"); t.textContent = msg; t.style.background = bad ? "var(--red)" : "var(--ok)"; t.style.color = bad ? "#2a0505" : "#052a1b"; t.style.display = "block"; clearTimeout(t._x); t._x = setTimeout(() => (t.style.display = "none"), 2800); }
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  return data;
+}
+async function refresh() { O = await api("/api/admin/overview"); render(); }
+function go(s) { document.querySelectorAll(".screen").forEach((e) => e.classList.remove("on")); $("s-" + s).classList.add("on"); document.querySelectorAll(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.s === s)); refresh(); }
+
+const EVENT_TEXT = {
+  registered: (e) => `${e.user} registered`, joined: (e) => `${e.user} joined ${cname(e.contestId)}${e.fee ? ` (paid ${e.fee} coins)` : ""}`,
+  points: (e) => `${e.user} +${e.points} pts in ${cname(e.contestId)} · ${e.reason}`, action: (e) => `${e.user}: ${e.action} on ${e.productId}`,
+  quiz_started: (e) => `${e.user} started quiz play ${e.play} in ${cname(e.contestId)}`, quiz_answer: (e) => `${e.user} answered a quiz question (${e.correct ? "right" : "wrong"})`,
+  quiz_completed: (e) => `${e.user} finished a quiz: ${e.correct}/${e.total} → +${e.points} pts`, redeemed: (e) => `${e.user} redeemed an item for ${e.coins} coins`,
+  prize_paid: (e) => `${e.user} won ${e.coins} coins (#${e.rank} in ${cname(e.contestId)})`, contest_launched: (e) => `Contest launched: ${cname(e.contestId)}`,
+  contest_updated: (e) => `Contest updated: ${cname(e.contestId)}`, contest_ended: (e) => `Contest ended: ${cname(e.contestId)}`,
+  shop_item_added: (e) => `Shop item added: ${e.item}`, shop_item_updated: (e) => `Shop item updated: ${e.item}`, shop_item_removed: (e) => `Shop item removed: ${e.item}`,
+};
+const cname = (id) => (O.contests.find((c) => c.id === id) || {}).name || id;
+
+function render() {
+  const T = O.totals;
+  const kpi = (l, v) => `<div class="kpi"><small>${l}</small><b>${v}</b></div>`;
+  $("kpis").innerHTML = kpi("Registered players", fmt(T.users)) + kpi("Live contests", fmt(T.liveContests)) + kpi("Contest joins", fmt(T.joins)) + kpi("Quiz plays", fmt(T.quizPlays))
+    + kpi("Avg quiz score", T.avgQuizScore == null ? "—" : T.avgQuizScore + "%") + kpi("Points awarded", fmt(T.pointsAwarded)) + kpi("Coins paid out", fmt(T.coinsPaidOut))
+    + kpi("Coins redeemed", fmt(T.coinsRedeemed)) + kpi("Reviews written", fmt(T.reviews)) + kpi("AI cost so far", usd(O.ai.totalCostUSD));
+
+  $("ov-contests").innerHTML = `<table><tr><th>Contest</th><th>Status</th><th>Real players</th><th>Quiz plays</th><th>Points awarded</th><th>Coins paid</th><th>Top real player</th></tr>${O.contests.map((c) => `<tr><td><b>${esc(c.name)}</b><br><small class="mut">${esc(c.tag)}</small></td><td><span class="pill ${c.status}">${c.status}</span></td><td>${c.realPlayers}</td><td>${c.quizPlays}</td><td>${fmt(c.pointsAwarded)}</td><td>${fmt(c.coinsPaid)}</td><td>${c.bestRealPlayer ? `${esc(c.bestRealPlayer.name)} · #${c.bestRealPlayer.rank} · ${fmt(c.bestRealPlayer.points)} pts` : "—"}</td></tr>`).join("")}</table>`;
+  $("ov-events").innerHTML = O.recentEvents.length ? `<table>${O.recentEvents.map((e) => `<tr><td class="mut" style="white-space:nowrap">${ago(e.t)}</td><td>${esc((EVENT_TEXT[e.type] || ((x) => x.type))(e))}</td></tr>`).join("")}</table>` : '<p class="mut">No activity yet. Open the player app and register to see events here.</p>';
+
+  // Contests
+  $("contesttable").innerHTML = `<table><tr><th>Contest</th><th>Entry</th><th>Points rules</th><th>Quiz</th><th>Prizes</th><th></th></tr>${O.contests.map((c) => `<tr>
+   <td><b>${esc(c.name)}</b> <span class="pill ${c.status}">${c.status}</span><br><small class="mut">${esc(c.desc)}</small></td>
+   <td>${c.entry.type === "coins" ? `${c.entry.fee} coins` : c.entry.type === "pass" ? "VIP pass" : "Free"}</td>
+   <td><small>${Object.entries(c.scoring).filter(([, v]) => v > 0).map(([k, v]) => `${esc(O.actions[k])}: <b>+${v}</b>`).join("<br>") || "—"}</small></td>
+   <td>${c.quiz.enabled ? `<small>${esc(O.topics[c.quiz.topic])}<br>${esc(c.quiz.difficulty)} · ${c.quiz.questions} Qs · ${c.quiz.maxPlays} plays</small>` : '<span class="mut">Off</span>'}</td>
+   <td><small>${c.prizes.map((p) => `≤#${p.upTo}: ${fmt(p.coins)} ${esc(p.note || "")}`).join("<br>")}</small></td>
+   <td style="white-space:nowrap">${c.status === "live" ? `<button class="btn ghost" onclick="editContest('${c.id}')">Edit</button> <button class="btn danger" onclick="endContest('${c.id}')">End & pay</button>` : ""}</td></tr>`).join("")}</table>`;
+  $("contestform").innerHTML = editingContest ? contestForm(editingContest) : "";
+
+  // Shop
+  $("shoptable").innerHTML = `<table><tr><th></th><th>Item</th><th>Category</th><th>Cost</th><th>Stock</th><th></th></tr>${O.shop.map((i) => `<tr><td style="font-size:22px">${esc(i.emoji)}</td><td><b>${esc(i.name)}</b>${i.grantsPass ? ' <span class="pill">grants VIP pass</span>' : ""}</td><td>${esc(i.category)}</td><td class="price">🪙 ${fmt(i.cost)}</td><td>${i.stock}</td><td style="white-space:nowrap"><button class="btn ghost" onclick="editItem('${i.id}')">Edit</button> <button class="btn danger" onclick="deleteItem('${i.id}')">Remove</button></td></tr>`).join("")}</table>`;
+  $("itemform").innerHTML = editingItem ? itemForm(editingItem) : "";
+
+  // Players
+  $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
+
+  // Products
+  $("producttable").innerHTML = `<table><tr><th>Product</th><th>Price</th><th>Reviews</th><th>Avg rating</th><th>Purchases</th><th>Details (used by brand quiz)</th></tr>${O.products.map((p) => `<tr><td>${p.emoji} <b>${esc(p.name)}</b><br><small class="mut">${esc(p.category)}</small></td><td>₹${fmt(p.price)}</td><td>${p.reviews}</td><td>${p.avgRating}★ (${p.ratingCount})</td><td>${p.purchases}</td><td><small class="mut">${esc(p.details)}</small></td></tr>`).join("")}</table>`;
+
+  // AI
+  const A = O.ai;
+  $("ai-sub").innerHTML = `Model: <b>${esc(O.model)}</b> · ${O.aiReady ? '<span class="pill live">API key loaded</span>' : '<span class="pill bad">No API key — add ANTHROPIC_API_KEY to .env and restart</span>'}`;
+  $("aikpis").innerHTML = kpi("AI calls", fmt(A.calls)) + kpi("Succeeded", fmt(A.ok)) + kpi("Failed", fmt(A.failed)) + kpi("Avg cost per quiz", usd(A.avgCostUSD)) + kpi("Avg generation time", A.avgMs == null ? "—" : (A.avgMs / 1000).toFixed(1) + "s") + kpi("Total AI cost", usd(A.totalCostUSD));
+  $("aicalls").innerHTML = A.recent.length ? `<table><tr><th>When</th><th>Purpose</th><th>Topic</th><th>Difficulty</th><th>Tokens in/out</th><th>Cost</th><th>Time</th><th>Result</th></tr>${A.recent.map((a) => `<tr><td>${ago(a.t)}</td><td>${esc(a.purpose)}${a.contestId ? `<br><small class="mut">${esc(cname(a.contestId))}</small>` : ""}</td><td>${esc(O.topics[a.topic] || a.topic)}</td><td>${esc(a.difficulty)}</td><td>${fmt(a.input_tokens)} / ${fmt(a.output_tokens)}</td><td>${usd(a.costUSD)}</td><td>${a.ms ? (a.ms / 1000).toFixed(1) + "s" : "—"}</td><td>${a.ok ? '<span class="pill live">ok</span>' : `<span class="pill bad">failed</span><br><small class="mut">${esc(a.error || "")}</small>`}</td></tr>`).join("")}</table>` : '<p class="mut">No AI calls yet.</p>';
+  if (!$("pv-topic").options.length) {
+    $("pv-topic").innerHTML = Object.entries(O.topics).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+    $("pv-diff").innerHTML = O.difficulties.map((d) => `<option>${d}</option>`).join("");
+  }
+  $("brandsub").textContent = "GlowCart · local demo";
+}
+
+// ---------- Contest form ----------
+function editContest(id) {
+  const c = id ? O.contests.find((x) => x.id === id) : { name: "", desc: "", entry: { type: "free", fee: 0 }, scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 }, quiz: { enabled: true, topic: "brand", difficulty: "mixed", questions: 5, maxPlays: 5 }, prizes: [{ upTo: 1, coins: 1000, note: "" }, { upTo: 2, coins: 500, note: "" }, { upTo: 3, coins: 250, note: "" }] };
+  editingContest = JSON.parse(JSON.stringify(c)); render(); window.scrollTo(0, 0);
+}
+function contestForm(c) {
+  const isNew = !c.id;
+  const prizes = [...c.prizes, ...Array(Math.max(0, 5 - c.prizes.length)).fill({ upTo: "", coins: "", note: "" })].slice(0, 5);
+  return `<div class="card"><form onsubmit="saveContest(event)">
+   <h2 style="margin-top:0">${isNew ? "Launch a new contest" : "Edit " + esc(c.name)}</h2>
+   <div class="grid">
+    <label>Name<input id="f-name" required value="${esc(c.name)}" placeholder="e.g. Diwali Glow Quiz"></label>
+    <label>Entry<select id="f-entry"><option value="free" ${c.entry.type === "free" ? "selected" : ""}>Free</option><option value="coins" ${c.entry.type === "coins" ? "selected" : ""}>Coin entry fee</option><option value="pass" ${c.entry.type === "pass" ? "selected" : ""}>VIP pass only</option></select></label>
+    <label>Entry fee (coins)<input id="f-fee" type="number" min="0" value="${c.entry.fee || 50}"></label>
+    <label>Duration (days)<input id="f-days" type="number" min="1" max="90" value="${isNew ? 7 : ""}" placeholder="${isNew ? "" : "leave blank to keep"}"></label>
+   </div>
+   <label style="margin-top:10px">Description<input id="f-desc" value="${esc(c.desc)}" placeholder="What players do and win"></label>
+   <fieldset><legend>Points: which actions count in this contest (0 = off)</legend><div class="grid">
+    ${Object.entries(O.actions).map(([k, l]) => `<label>${esc(l)}<input id="f-s-${k}" type="number" min="0" value="${c.scoring[k] || 0}"></label>`).join("")}</div></fieldset>
+   <fieldset><legend>AI quiz</legend><div class="grid">
+    <label><input id="f-q-on" type="checkbox" ${c.quiz.enabled ? "checked" : ""}>Quiz enabled</label>
+    <label>Topic<select id="f-q-topic">${Object.entries(O.topics).map(([k, v]) => `<option value="${k}" ${c.quiz.topic === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+    <label>Difficulty<select id="f-q-diff">${O.difficulties.map((d) => `<option ${c.quiz.difficulty === d ? "selected" : ""}>${d}</option>`).join("")}</select></label>
+    <label>Questions per play<input id="f-q-n" type="number" min="3" max="10" value="${c.quiz.questions}"></label>
+    <label>Max plays per player<input id="f-q-plays" type="number" min="1" max="20" value="${c.quiz.maxPlays}"></label></div></fieldset>
+   <fieldset><legend>Prizes (coins, paid by rank when the contest ends)</legend>
+    ${prizes.map((p, i) => `<div class="grid"><label>Ranks up to #<input id="f-p-up-${i}" type="number" min="1" value="${p.upTo}"></label><label>Coins each<input id="f-p-c-${i}" type="number" min="0" value="${p.coins}"></label><label>Extra (optional)<input id="f-p-n-${i}" value="${esc(p.note || "")}" placeholder="e.g. + Hamper"></label></div>`).join("")}
+   </fieldset>
+   <div class="row" style="justify-content:flex-start;gap:8px"><button class="btn">${isNew ? "Launch contest" : "Save changes"}</button><button type="button" class="btn ghost" onclick="editingContest=null;render()">Cancel</button></div>
+  </form></div>`;
+}
+async function saveContest(ev) {
+  ev.preventDefault();
+  const v = (id) => $(id).value;
+  const body = {
+    id: editingContest.id, name: v("f-name"), desc: v("f-desc"), days: v("f-days") || undefined,
+    entry: { type: v("f-entry"), fee: v("f-fee") },
+    scoring: Object.fromEntries(Object.keys(O.actions).map((k) => [k, v("f-s-" + k)])),
+    quiz: { enabled: $("f-q-on").checked, topic: v("f-q-topic"), difficulty: v("f-q-diff"), questions: v("f-q-n"), maxPlays: v("f-q-plays") },
+    prizes: [0, 1, 2, 3, 4].map((i) => ({ upTo: v("f-p-up-" + i), coins: v("f-p-c-" + i), note: v("f-p-n-" + i) })).filter((p) => p.upTo),
+  };
+  try { await api("/api/admin/contest", body); toast(body.id ? "Contest updated" : "Contest launched — it's live in the player app"); editingContest = null; refresh(); } catch (e) { toast(e.message, true); }
+}
+async function endContest(id) {
+  if (!confirm(`End "${cname(id)}" now and pay coin prizes to real players by rank? This can't be undone.`)) return;
+  try { const r = await api("/api/admin/contest/end", { id }); toast(r.paid.length ? `Paid ${r.paid.map((p) => `${p.name} ${p.coins}`).join(", ")}` : "Contest ended. No real players were in prize ranks."); refresh(); } catch (e) { toast(e.message, true); }
+}
+
+// ---------- Shop form ----------
+function editItem(id) { editingItem = id ? { ...O.shop.find((x) => x.id === id) } : { name: "", category: "Products", emoji: "🎁", cost: 300, stock: 20, grantsPass: false }; render(); window.scrollTo(0, 0); }
+function itemForm(i) {
+  return `<div class="card"><form onsubmit="saveItem(event)"><h2 style="margin-top:0">${i.id ? "Edit item" : "Add a shop item"}</h2><div class="grid">
+   <label>Name<input id="i-name" required value="${esc(i.name)}" placeholder="e.g. Rose Hand Balm"></label>
+   <label>Category<input id="i-cat" value="${esc(i.category)}" list="cats"></label><datalist id="cats"><option>Products</option><option>Coupons</option><option>Experiences</option><option>Passes</option></datalist>
+   <label>Emoji<input id="i-emoji" value="${esc(i.emoji)}" maxlength="4"></label>
+   <label>Cost (coins)<input id="i-cost" type="number" min="1" value="${i.cost}"></label>
+   <label>Stock<input id="i-stock" type="number" min="0" value="${i.stock}"></label>
+   <label><input id="i-pass" type="checkbox" ${i.grantsPass ? "checked" : ""}>Grants VIP contest pass</label></div>
+   <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button class="btn">${i.id ? "Save" : "Add to shop"}</button><button type="button" class="btn ghost" onclick="editingItem=null;render()">Cancel</button></div></form></div>`;
+}
+async function saveItem(ev) {
+  ev.preventDefault();
+  const body = { id: editingItem.id, name: $("i-name").value, category: $("i-cat").value, emoji: $("i-emoji").value, cost: $("i-cost").value, stock: $("i-stock").value, grantsPass: $("i-pass").checked };
+  try { await api("/api/admin/shop", body); toast(body.id ? "Item saved" : "Item added to the Rewards Shop"); editingItem = null; refresh(); } catch (e) { toast(e.message, true); }
+}
+async function deleteItem(id) {
+  if (!confirm("Remove this item from the Rewards Shop?")) return;
+  try { await api("/api/admin/shop/delete", { id }); toast("Item removed"); refresh(); } catch (e) { toast(e.message, true); }
+}
+
+// ---------- AI preview ----------
+async function previewQuiz(ev) {
+  ev.preventDefault();
+  $("pv-btn").disabled = true; $("pv-out").innerHTML = '<p class="mut">Generating with Claude…</p>';
+  try {
+    const r = await api("/api/admin/quiz-preview", { topic: $("pv-topic").value, difficulty: $("pv-diff").value, questions: $("pv-n").value });
+    $("pv-out").innerHTML = r.questions.map((q, i) => `<div class="q"><b>${i + 1}. ${esc(q.question)}</b> <span class="pill">${esc(q.difficulty)}</span><ol type="A">${q.options.map((o, k) => `<li class="${k === q.correct ? "ok" : ""}">${esc(o)}${k === q.correct ? " ✓" : ""}</li>`).join("")}</ol><small class="mut">${esc(q.explanation)}</small></div>`).join("");
+  } catch (e) { $("pv-out").innerHTML = `<p class="pill bad">${esc(e.message)}</p>`; }
+  $("pv-btn").disabled = false; refresh();
+}
+async function resetDemo() {
+  if (!confirm("Reset all demo data (players, contests, shop, AI log) to the starting state?")) return;
+  try { await api("/api/admin/reset", {}); toast("Demo data reset"); refresh(); } catch (e) { toast(e.message, true); }
+}
+refresh().catch((e) => toast("Can't reach the local server: " + e.message, true));
+</script>
+</body></html>

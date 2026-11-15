@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credexon League</title>
+<style>
+:root{--bg:#0d0f1e;--side:#14162b;--card:#1b1e38;--line:#2b2f57;--txt:#f1f2fb;--mut:#9599c2;--gold:#ffc24b;--acc:#7c5cff;--ok:#34d399;--red:#f87171}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}
+.app{display:flex;min-height:100vh}
+aside{width:230px;background:var(--side);border-right:1px solid var(--line);padding:16px;flex-shrink:0}
+.logo{font-weight:800;font-size:17px;margin-bottom:14px}.logo span{background:var(--acc);border-radius:8px;padding:3px 7px;margin-right:6px}
+.me{background:var(--card);border-radius:12px;padding:12px;margin-bottom:14px}.me b{display:block}.me small{color:var(--mut)}
+.sec{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px}
+.nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+.nav button.on,.nav button:hover{background:var(--card);color:var(--gold)}
+.wal{background:linear-gradient(135deg,#3b2a00,#6b4a00);border-radius:12px;padding:12px;margin-top:14px}.wal b{font-size:20px;color:var(--gold)}
+.adminlink{display:block;margin-top:14px;color:var(--mut);font-size:12px}
+main{flex:1;padding:22px;max-width:980px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px}.mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.grid{display:grid;align-items:start;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.hero{background:linear-gradient(135deg,#5b3cff,#b23cff);border-radius:16px;padding:20px}
+.stats{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.stats div{background:rgba(0,0,0,.25);border-radius:10px;padding:10px 14px}.stats b{display:block;font-size:20px}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;background:var(--gold);color:#241700;cursor:pointer;font-size:14px}
+.btn.ghost{background:var(--line);color:var(--txt)}.btn.acc{background:var(--acc);color:#fff}.btn:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-weight:500;font-size:12px}
+tr.you td{color:var(--gold);font-weight:700}
+.tabs{display:flex;gap:6px;margin:14px 0 12px;flex-wrap:wrap}.tabs button{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:20px;padding:7px 15px;cursor:pointer}.tabs button.on{background:var(--gold);color:#241700;border-color:var(--gold)}
+.item .img,.prod .img{height:96px;border-radius:10px;background:#11132a;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:10px}
+.price{color:var(--gold);font-weight:800}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pill{background:var(--line);border-radius:12px;padding:2px 9px;font-size:11px;color:var(--mut);display:inline-block}
+.pill.live{background:#0f3d2c;color:var(--ok)}.pill.ended{background:#3d1717;color:var(--red)}
+.up{color:var(--ok)}.down{color:var(--red)}
+.toast{position:fixed;top:16px;right:16px;max-width:360px;background:var(--ok);color:#052a1b;padding:10px 16px;border-radius:10px;font-weight:700;display:none;z-index:20}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal>.card{width:560px;max-width:100%;max-height:90vh;overflow:auto}
+.screen{display:none}.screen.on{display:block}
+.act{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.act textarea{width:100%;margin-top:6px;background:#11132a;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font:inherit}
+.stars span{font-size:22px;cursor:pointer;color:var(--line)}.stars span.on{color:var(--gold)}
+.sm{padding:7px 12px;font-size:13px;margin-top:8px}.done{color:var(--ok);font-size:13px;margin-top:6px}
+.note{font-size:12px;color:var(--mut);margin-top:6px}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;background:#11132a;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:12px;font:inherit;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--acc)}.opt.right{border-color:var(--ok);background:#0f3d2c}.opt.wrong{border-color:var(--red);background:#3d1717}.opt:disabled{cursor:default}
+.spinner{width:36px;height:36px;border:4px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:18px auto}@keyframes spin{to{transform:rotate(360deg)}}
+.qbar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0 14px}.qbar i{display:block;height:100%;background:var(--gold)}
+.howto li{margin:8px 0}
+.consent{font-size:11px;color:var(--mut);margin-top:16px}
+@media(max-width:760px){.app{flex-direction:column}aside{width:auto}.nav{display:flex;overflow-x:auto;gap:4px}.nav button{white-space:nowrap;width:auto}.sec{display:none}main{padding:16px}}
+</style>
+<!-- PostHog analytics: public project token only (safe in client code). Captures pageviews, clicks and session replay. -->
+<script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="Eh Rh Ph Oh Lh qh init yd bd dd fd Sd wc md xd ad Ed Ad Rd Pd Od Fd capture getExtension gr pd gd calculateEventProperties Ld register register_once register_for_session unregister unregister_for_session zd hd jd getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys onActiveMatchingSurveysChanged renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Hd identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset Ud shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty qd Td createPersonProfile setInternalOrTestUser Bd Uh zh opt_in_capturing opt_out_capturing Hh has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing $d debug kc Ls getPageViewId captureTraceFeedback captureTraceMetric rd".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_vKDL4PoNgj9FzDe9bBEiaUeBFnPtgeJvpPrHBBcvzRqf', {
+        api_host: 'https://us.i.posthog.com',
+        defaults: '2026-05-30',
+        person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+    })
+</script>
+</head><body>
+<div class="app">
+<aside>
+ <div class="logo"><span>CX</span><span id="brandname" style="background:none;padding:0">GlowCart</span> League</div>
+ <div class="me"><b id="uname">Guest</b><small id="usub">Not registered</small><br><button class="btn ghost sm" style="margin-top:8px" onclick="switchPlayer()" id="switchbtn">Register</button></div>
+ <div class="nav">
+  <div class="sec">Contests</div>
+  <button data-s="contests" class="on" onclick="go('contests')">🏅 Contests</button>
+  <button data-s="mine" onclick="go('mine')">🎯 My Contests</button>
+  <button data-s="general" onclick="go('general')">🥇 Leaderboards</button>
+  <div class="sec">Earn & Spend</div>
+  <button data-s="shop" onclick="go('shop')">🎁 Rewards Shop</button>
+  <button data-s="wallet" onclick="go('wallet')">👛 My Wallet</button>
+  <button data-s="coupons" onclick="go('coupons')">🎟️ My Coupons</button>
+ </div>
+ <div class="wal"><small>My Wallet</small><br><b id="bal">0</b> <small>coins</small></div>
+ <a class="adminlink" href="/admin">🛠️ Brand admin panel →</a>
+</aside>
+
+<main>
+<section class="screen on" id="s-contests">
+ <h1>🏅 Contests</h1>
+ <p class="mut">Join up to <b id="maxc">5</b> live contests at a time. Each contest has its own <b>points</b> leaderboard; top players win <b>coins</b> when it ends.</p>
+ <div id="needreg" class="card" style="display:none"><div class="row"><span>Register to join contests. You'll get <b class="price">500 welcome coins</b>.</span><button class="btn" onclick="register()">Register</button></div></div>
+ <div class="grid" id="contestlist"></div>
+</section>
+
+<section class="screen" id="s-detail">
+ <button class="btn ghost sm" style="margin:0 0 12px" onclick="go('contests')">← All contests</button>
+ <div class="hero" id="d-hero"></div>
+ <div id="d-quiz"></div>
+ <div class="tabs" id="d-tabs"></div>
+ <div id="d-body"></div>
+</section>
+
+<section class="screen" id="s-mine">
+ <h1>🎯 My Contests</h1><p class="mut">Your points and rank in each contest you've joined.</p>
+ <div id="minelist"></div>
+</section>
+
+<section class="screen" id="s-general">
+ <h1>🥇 Leaderboards</h1><p class="mut">Across all contests and the Rewards Shop.</p>
+ <div class="grid" id="generalboards"></div>
+</section>
+
+<section class="screen" id="s-shop">
+ <h1>🎁 Rewards Shop</h1>
+ <p class="mut"><b>Earn</b> contest points with product actions. Each action adds points to every contest you've joined that scores it. <b>Redeem</b> spends your coins.</p>
+ <div class="tabs" id="shoptabs"></div>
+ <div id="shopbody"></div>
+</section>
+
+<section class="screen" id="s-wallet">
+ <h1>👛 My Wallet</h1>
+ <div class="stats"><div class="card" style="margin:0"><small class="mut">Balance</small><b class="price" id="wbal">0</b></div><div class="card" style="margin:0"><small class="mut">Coins earned</small><b class="up" id="wearn">0</b></div><div class="card" style="margin:0"><small class="mut">Coins spent</small><b class="down" id="wspent">0</b></div></div>
+ <p class="note">Coins come from your welcome bonus and contest prizes. Points you earn in contests stay in those contests.</p>
+ <h2>🪙 Coin history</h2><div class="card" id="hist"></div>
+</section>
+
+<section class="screen" id="s-coupons">
+ <h1>🎟️ My Coupons</h1><div class="card" id="coupons"></div>
+</section>
+<p class="consent">This demo uses PostHog analytics (pageviews, clicks and session recordings) for class user testing. Brand and products are fictional.</p>
+</main></div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="quizmodal"><div class="card" id="quizcard"></div></div>
+
+<script>
+// ---------- State & helpers ----------
+let D = null;                 // latest /api/state payload
+let ME = null;                // current user's name
+let activeId = null, detailTab = "prizes", shopTab = "earn", shopCat = "All";
+const PS = {};                // per-product UI state (open panel, stars picked)
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n || 0).toLocaleString();
+const track = (event, props) => { try { window.posthog && posthog.capture(event, props); } catch (e) {} };
+function store(k, v) { try { v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+function toast(msg, bad) { const t = $("toast"); t.textContent = msg; t.style.background = bad ? "var(--red)" : "var(--ok)"; t.style.color = bad ? "#2a0505" : "#052a1b"; t.style.display = "block"; clearTimeout(t._x); t._x = setTimeout(() => (t.style.display = "none"), 2600); }
+
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  return data;
+}
+async function refresh() { D = await api("/api/state" + (ME ? "?user=" + encodeURIComponent(ME) : "")); if (ME && !D.me) { ME = null; store("crx_user", ""); } render(); }
+async function act(fn) { try { return await fn(); } catch (e) { toast(e.message, true); } }
+
+function go(s) {
+  document.querySelectorAll(".screen").forEach((e) => e.classList.remove("on")); $("s-" + s).classList.add("on");
+  document.querySelectorAll(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.s === s || (s === "detail" && b.dataset.s === "contests")));
+  window.scrollTo(0, 0);
+}
+const C = (id) => D.contests.find((c) => c.id === id);
+const J = (id) => D.me && D.me.joined[id];
+const liveJoined = () => D.me ? Object.keys(D.me.joined).filter((id) => C(id) && C(id).status === "live").length : 0;
+function timeLeft(c) { if (c.status !== "live") return "Ended"; const ms = c.endsAt - Date.now(); if (ms <= 0) return "Ending"; const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5); return `${d}d ${String(h).padStart(2, "0")}h`; }
+function joinLabel(c) { return c.entry.type === "free" ? "Join free" : c.entry.type === "coins" ? `Enter for ${c.entry.fee} coins` : (D.me && D.me.hasVipPass ? "Enter with VIP pass" : "🔒 Needs VIP pass"); }
+
+// ---------- Actions ----------
+async function register() {
+  const n = prompt("Your name to register:", "Yash"); if (n === null || !n.trim()) return;
+  await act(async () => { const me = await api("/api/register", { name: n.trim() }); ME = me.name; store("crx_user", ME); try { posthog.identify(ME.toLowerCase(), { name: ME }); } catch (e) {} track("registered"); toast(`Welcome, ${ME}! +500 coins`); await refresh(); });
+}
+// Demo login: switching players lets you test the leaderboard with player 1 vs player 2 in one browser.
+async function switchPlayer() { const prev = ME; ME = null; await register(); if (!ME) { ME = prev; } else { try { posthog.reset(); posthog.identify(ME.toLowerCase(), { name: ME }); } catch (e) {} } await refresh(); }
+async function join(id) {
+  if (!ME) { await register(); if (!ME) return; }
+  await act(async () => { await api("/api/join", { user: ME, contestId: id }); const c = C(id); track("contest_joined", { contest_id: id, entry_type: c.entry.type }); toast(`Joined ${c.name}`); await refresh(); });
+}
+function openC(id, tab) { activeId = id; detailTab = tab || "prizes"; go("detail"); render(); track("contest_viewed", { contest_id: id }); }
+
+async function earnAction(pid, type) {
+  if (!ME) return toast("Register first", true);
+  const body = { user: ME, type, productId: pid };
+  if (type === "review") body.text = ($("t-" + pid) || {}).value || "";
+  if (type === "rating") body.stars = PS[pid] && PS[pid].stars;
+  if (type === "referral") { try { navigator.clipboard.writeText(`https://glowcart.example/p/${pid}?ref=${encodeURIComponent(ME)}`); } catch (e) {} }
+  await act(async () => {
+    const r = await api("/api/action", body);
+    const total = r.credited.reduce((s, x) => s + x.points, 0);
+    track("earn_action", { action: type, product_id: pid, contests_credited: r.credited.length, points: total });
+    toast(r.credited.length ? `+${total} points across ${r.credited.length} contest${r.credited.length > 1 ? "s" : ""}` : "Saved. None of your joined contests score this action.", !r.credited.length);
+    await refresh();
+  });
+}
+async function redeem(itemId) {
+  if (!ME) return toast("Register first", true);
+  await act(async () => { const r = await api("/api/redeem", { user: ME, itemId }); track("reward_redeemed", { item_id: itemId }); toast(`Redeemed! Code ${r.code}`); await refresh(); });
+}
+
+// ---------- Quiz ----------
+let QZ = null;
+function quizModal(html) { $("quizcard").innerHTML = html; $("quizmodal").style.display = "flex"; }
+function closeQuiz() { $("quizmodal").style.display = "none"; QZ = null; refresh(); }
+async function startQuiz(id) {
+  const c = C(id);
+  quizModal(`<h2 style="margin-top:0">🧠 ${esc(c.name)} quiz</h2><div class="spinner"></div><p class="mut" style="text-align:center">Claude is writing your questions…<br><small>Topic: ${esc(D.topics[c.quiz.topic])} · ${esc(c.quiz.difficulty)}</small></p>`);
+  const t0 = performance.now();
+  track("quiz_requested", { contest_id: id, topic: c.quiz.topic, difficulty: c.quiz.difficulty });
+  try {
+    const q = await api("/api/quiz/start", { user: ME, contestId: id });
+    QZ = { ...q, contestId: id, i: 0, correct: 0, answered: false };
+    track("quiz_started", { contest_id: id, topic: c.quiz.topic, difficulty: c.quiz.difficulty, play: q.play, generation_ms: Math.round(performance.now() - t0) });
+    showQuestion();
+  } catch (e) {
+    track("quiz_generation_failed", { contest_id: id, error: e.message });
+    quizModal(`<h2 style="margin-top:0">Quiz unavailable</h2><p>${esc(e.message)}</p><p class="mut">This attempt wasn't counted.</p><button class="btn" onclick="closeQuiz()">Close</button>`);
+  }
+}
+function showQuestion() {
+  const q = QZ.questions[QZ.i], n = QZ.questions.length;
+  QZ.answered = false;
+  quizModal(`<div class="row"><b>Question ${QZ.i + 1} of ${n}</b><span class="pill">${esc(q.difficulty)}</span></div>
+   <div class="qbar"><i style="width:${(QZ.i / n) * 100}%"></i></div>
+   <h2 style="margin:6px 0 10px">${esc(q.question)}</h2>
+   ${q.options.map((o, k) => `<button class="opt" id="opt${k}" onclick="answer(${k})">${String.fromCharCode(65 + k)}. ${esc(o)}</button>`).join("")}
+   <div id="qfeedback"></div>
+   <p class="note">Play ${QZ.play} of ${QZ.maxPlays} · ${QZ.pointsPerCorrect} points per correct answer${QZ.perfectBonus ? ` · +${QZ.perfectBonus} for a perfect score` : ""}</p>`);
+}
+async function answer(k) {
+  if (QZ.answered) return; QZ.answered = true;
+  document.querySelectorAll(".opt").forEach((b) => (b.disabled = true));
+  try {
+    const r = await api("/api/quiz/answer", { quizId: QZ.quizId, index: QZ.i, choice: k });
+    if (r.correct) QZ.correct++;
+    $("opt" + r.correctIndex).classList.add("right"); if (!r.correct) $("opt" + k).classList.add("wrong");
+    track("quiz_answered", { contest_id: QZ.contestId, question_index: QZ.i, correct: r.correct });
+    const last = QZ.i === QZ.questions.length - 1;
+    $("qfeedback").innerHTML = `<p class="${r.correct ? "up" : "down"}"><b>${r.correct ? "✓ Correct!" : "✗ Not quite."}</b> <span class="mut">${esc(r.explanation)}</span></p><button class="btn" onclick="${last ? "finishQuiz()" : "QZ.i++;showQuestion()"}">${last ? "See results" : "Next question →"}</button>`;
+  } catch (e) { toast(e.message, true); }
+}
+async function finishQuiz() {
+  try {
+    const r = await api("/api/quiz/finish", { quizId: QZ.quizId });
+    track("quiz_completed", { contest_id: QZ.contestId, correct: r.correct, total: r.total, perfect: r.perfect, points: r.points });
+    const c = C(QZ.contestId);
+    quizModal(`<h2 style="margin-top:0">${r.perfect ? "🏆 Perfect score!" : "Quiz complete"}</h2>
+     <div class="stats"><div><b>${r.correct}/${r.total}</b>correct</div><div><b class="price">+${r.points}</b>points</div><div><b>${r.playsLeft}</b>plays left</div></div>
+     <p class="mut">Points were added to <b>${esc(c.name)}</b> only.</p>
+     <div class="row" style="justify-content:flex-start;gap:8px">${r.playsLeft > 0 ? `<button class="btn" onclick="startQuiz('${c.id}')">Play again</button>` : ""}<button class="btn ghost" onclick="closeQuiz();openC('${c.id}','leaderboard')">See leaderboard</button></div>`);
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---------- Rendering ----------
+function boardTable(rows, hiName) {
+  return `<table><tr><th>Rank</th><th>Player</th><th>Points</th><th>Prize</th></tr>${rows.map((r) => `<tr class="${r.user && hiName && r.name.toLowerCase() === hiName.toLowerCase() ? "you" : ""}"><td>${["🥇", "🥈", "🥉"][r.rank - 1] || r.rank}</td><td>${esc(r.name)}${r.user && hiName && r.name.toLowerCase() === hiName.toLowerCase() ? " (You)" : ""}</td><td>${fmt(r.points)}</td><td class="mut">${r.prize ? `${fmt(r.prize.coins)} coins ${esc(r.prize.note)}` : "—"}</td></tr>`).join("")}</table>`;
+}
+function scoringRows(c) {
+  const rows = Object.entries(D.actions).filter(([k]) => (c.scoring[k] || 0) > 0);
+  if (!rows.length) return '<p class="mut">This contest has no point rules yet.</p>';
+  return rows.map(([k, label]) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="mut">${esc(label)}${k.startsWith("quiz") ? "" : ' <span class="pill">Rewards Shop → Earn</span>'}</span><span class="price">+${c.scoring[k]}</span></div>`).join("")
+    + (c.quiz.enabled ? `<div class="row" style="padding:8px 0"><span class="mut">Quiz plays per player</span><span class="price">${c.quiz.maxPlays} max</span></div>` : "")
+    + `<div class="row" style="padding:8px 0"><span class="mut">Live contests you can join at once</span><span class="price">${D.maxActiveContests} max</span></div>`;
+}
+
+function render() {
+  if (!D) return;
+  $("brandname").textContent = D.brand.name; $("maxc").textContent = D.maxActiveContests;
+  const me = D.me;
+  $("uname").textContent = me ? me.name : "Guest";
+  $("usub").textContent = me ? `${liveJoined()}/${D.maxActiveContests} live contests joined` : "Not registered";
+  $("bal").textContent = fmt(me ? me.coins : 0);
+  $("switchbtn").textContent = me ? "Switch player" : "Register";
+  $("needreg").style.display = me ? "none" : "block";
+
+  // Contest lobby
+  $("contestlist").innerHTML = D.contests.map((c) => {
+    const j = J(c.id);
+    return `<div class="card"><div class="row"><span class="pill ${c.status}">${c.status === "live" ? "● Live" : "Ended"}</span><span class="mut" style="font-size:12px">${timeLeft(c)}</span></div>
+     <h2 style="margin:10px 0 4px">${esc(c.name)}</h2><span class="pill">${esc(c.tag)}</span>
+     <p class="mut">${esc(c.desc)}</p>
+     <p style="margin:6px 0">${c.quiz.enabled ? `🧠 AI quiz · ${esc(D.topics[c.quiz.topic])}` : "No quiz"} · ${fmt(c.players)} players</p>
+     <p class="mut" style="margin:6px 0">🏆 1st: ${fmt(c.prizes[0].coins)} coins ${esc(c.prizes[0].note || "")}</p>
+     <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px">
+      ${j ? `<button class="btn ghost" onclick="openC('${c.id}')">Joined · Rank #${j.rank}</button>` : c.status === "live" ? `<button class="btn" onclick="join('${c.id}')">${joinLabel(c)}</button>` : ""}
+      <button class="btn ghost" onclick="openC('${c.id}')">Details</button></div></div>`;
+  }).join("");
+
+  // Contest detail
+  const c = activeId && C(activeId);
+  if (c) {
+    const j = J(c.id);
+    $("d-hero").innerHTML = `<span class="pill" style="background:rgba(0,0,0,.3);color:#fff">${esc(c.tag)}</span>
+     <h1 style="margin-top:10px">${esc(c.name)}</h1><p style="margin:0;opacity:.9">${esc(c.desc)}</p>
+     <div class="stats"><div><b>${timeLeft(c)}</b>left</div><div><b>${fmt(c.players)}</b>players</div><div><b>${j ? fmt(j.points) : "—"}</b>your points</div><div><b>${j ? "#" + j.rank : "—"}</b>your rank</div></div>
+     <div style="margin-top:14px">${j ? `<button class="btn" onclick="go('shop')">Earn points in the Rewards Shop →</button>` : c.status === "live" ? `<button class="btn" onclick="join('${c.id}')">${joinLabel(c)}</button>` : '<span class="pill ended">This contest has ended</span>'}</div>`;
+    const left = j ? c.quiz.maxPlays - j.plays : c.quiz.maxPlays;
+    $("d-quiz").innerHTML = c.quiz.enabled ? `<div class="card" style="margin-top:12px"><div class="row"><div><b>🧠 Contest quiz</b><br><small class="mut">${esc(D.topics[c.quiz.topic])} · ${esc(c.quiz.difficulty)} · ${c.quiz.questions} questions per play · questions written by AI</small></div>
+      ${j && c.status === "live" ? `<button class="btn acc" ${left <= 0 ? "disabled" : ""} onclick="startQuiz('${c.id}')">${left > 0 ? `Play quiz · ${left} of ${c.quiz.maxPlays} left` : "No plays left"}</button>` : `<span class="mut">Join to play</span>`}</div></div>` : "";
+    const tabs = [["prizes", "🎁 Prizes"], ["leaderboard", "📊 Leaderboard"], ["scoring", "⭐ Scoring"], ["howto", "❓ How to Play"]];
+    $("d-tabs").innerHTML = tabs.map(([k, l]) => `<button class="${detailTab === k ? "on" : ""}" onclick="detailTab='${k}';render()">${l}</button>`).join("");
+    let body = "";
+    if (detailTab === "prizes") body = `<div class="card">${c.prizes.map((p, i) => { const from = i ? c.prizes[i - 1].upTo + 1 : 1; return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>${from === p.upTo ? ["🥇 1st", "🥈 2nd", "🥉 3rd"][p.upTo - 1] || `#${p.upTo}` : `#${from}–${p.upTo}`}</span><span class="price">${fmt(p.coins)} coins ${esc(p.note || "")}</span></div>`; }).join("")}<p class="note">Prizes are paid in coins when the contest ends. Spend coins in the Rewards Shop.</p></div>`;
+    if (detailTab === "leaderboard") body = `<div class="card">${boardTable(c.leaderboard, D.me && D.me.name)}</div>`;
+    if (detailTab === "scoring") body = `<div class="card">${scoringRows(c)}</div>`;
+    if (detailTab === "howto") body = `<div class="card"><ol class="howto">
+      <li><b>Join</b> the contest (you can be in up to ${D.maxActiveContests} live contests at once).</li>
+      <li><b>Earn points</b> with product actions in the Rewards Shop → Earn tab. Each action counts in every joined contest that scores it.</li>
+      ${c.quiz.enabled ? `<li><b>Play the quiz</b>: ${c.quiz.questions} AI-written questions per play, up to ${c.quiz.maxPlays} plays. Quiz points count in this contest only.</li>` : ""}
+      <li><b>Climb the leaderboard.</b> When the contest ends, top ranks win coins.</li></ol></div>`;
+    $("d-body").innerHTML = body;
+  }
+
+  // My contests
+  $("minelist").innerHTML = me && Object.keys(me.joined).length ? Object.entries(me.joined).map(([id, j]) => {
+    const k = C(id); if (!k) return "";
+    return `<div class="card"><div class="row"><div><span class="pill ${k.status}">${k.status}</span> <b style="font-size:16px">${esc(k.name)}</b><br><small class="mut">${timeLeft(k)} left · ${k.quiz.enabled ? `quiz plays ${j.plays}/${k.quiz.maxPlays}` : "no quiz"}</small></div>
+     <div style="text-align:right"><b class="price" style="font-size:20px">${fmt(j.points)} pts</b><br><small class="mut">Rank #${j.rank} of ${fmt(k.players)}</small></div></div>
+     <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button class="btn ghost sm" onclick="openC('${id}','leaderboard')">Leaderboard</button>${k.quiz.enabled && k.status === "live" && j.plays < k.quiz.maxPlays ? `<button class="btn acc sm" onclick="startQuiz('${id}')">Play quiz</button>` : ""}</div></div>`;
+  }).join("") : `<div class="card mut">You haven't joined any contests yet. <button class="btn sm" onclick="go('contests')">Browse contests</button></div>`;
+
+  // General leaderboards
+  const G = D.general;
+  const list = (title, rows, unit) => `<div class="card"><b>${title}</b>${rows.length ? `<table>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td class="price">${r.value}${unit}${r.count ? ` <small class="mut">(${r.count})</small>` : ""}</td></tr>`).join("")}</table>` : '<p class="mut">No data yet</p>'}</div>`;
+  $("generalboards").innerHTML = list("🏅 Most contest points", G.mostPoints, " pts") + list("🧠 Most quiz plays", G.mostQuizPlays, "") + list("🪙 Most coins won", G.mostCoinsEarned, "") + list("✍️ Most-reviewed products", G.mostReviewedProducts, "") + list("⭐ Top-rated products", G.topRatedProducts, "★");
+
+  // Rewards shop
+  $("shoptabs").innerHTML = [["earn", "⭐ Earn points"], ["redeem", "🪙 Redeem coins"]].map(([k, l]) => `<button class="${shopTab === k ? "on" : ""}" onclick="shopTab='${k}';render()">${l}</button>`).join("");
+  if (shopTab === "earn") {
+    const joinedLive = me ? Object.keys(me.joined).filter((id) => C(id) && C(id).status === "live") : [];
+    const ptsFor = (type) => { const hits = joinedLive.map((id) => C(id).scoring[type] || 0).filter((x) => x > 0); return hits.length ? `+${hits.reduce((s, x) => s + x, 0)} pts · ${hits.length} contest${hits.length > 1 ? "s" : ""}` : "no joined contest scores this"; };
+    const done = (t, pid) => me && me.done[`${t}:${pid}`];
+    $("shopbody").innerHTML = (!me ? `<div class="card">Register and join a contest to earn points. <button class="btn sm" onclick="register()">Register</button></div>` : !joinedLive.length ? `<div class="card">Join a contest first; points only count in contests you've joined. <button class="btn sm" onclick="go('contests')">Browse contests</button></div>` : "")
+      + `<div class="grid">${D.products.map((p) => { PS[p.id] ??= { open: false, stars: 0 }; const s = PS[p.id];
+        return `<div class="card prod"><div class="img">${p.emoji}</div><b>${esc(p.name)}</b><p class="mut" style="margin:4px 0">₹${fmt(p.price)} · ${p.avgRating}★ (${p.ratingCount}) · ${p.reviews} reviews</p>
+         <button class="btn acc" style="width:100%;margin-top:8px" onclick="PS['${p.id}'].open=!PS['${p.id}'].open;render()">${s.open ? "▲ Hide" : "▼ Earn points on this product"}</button>
+         ${s.open ? `<div style="margin-top:10px">
+          <div class="act"><b>✍️ Write a review</b><div class="note">${ptsFor("review")}</div>${done("review", p.id) ? '<div class="done">✓ Review posted</div>' : `<textarea id="t-${p.id}" rows="3" placeholder="30+ words about this product"></textarea><button class="btn sm" onclick="earnAction('${p.id}','review')">Post review</button>`}</div>
+          <div class="act"><b>📸 Photo review</b><div class="note">${ptsFor("photo")}</div>${done("photo", p.id) ? '<div class="done">✓ Photo added</div>' : `<button class="btn ghost sm" onclick="earnAction('${p.id}','photo')">Upload photo (demo)</button>`}</div>
+          <div class="act"><b>⭐ Star rating</b><div class="note">${ptsFor("rating")}</div>${done("rating", p.id) ? '<div class="done">✓ Rated</div>' : `<div class="stars">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= s.stars ? "on" : ""}" onclick="PS['${p.id}'].stars=${n};render()">★</span>`).join("")}</div><button class="btn ghost sm" onclick="earnAction('${p.id}','rating')">Submit rating</button>`}</div>
+          <div class="act"><b>👥 Refer a friend</b><div class="note">${ptsFor("referral")} · demo simulates the friend signing up</div><button class="btn ghost sm" onclick="earnAction('${p.id}','referral')">Copy referral link</button></div>
+          <div class="act"><b>🛒 Buy with coupon GLOWLEAGUE</b><div class="note">${ptsFor("purchase")} · demo purchase, no payment</div><button class="btn sm" onclick="earnAction('${p.id}','purchase')">Buy now (demo)</button></div>
+         </div>` : ""}</div>`; }).join("")}</div>`;
+  } else {
+    const cats = ["All", ...new Set(D.shop.map((i) => i.category))];
+    $("shopbody").innerHTML = `<div class="tabs">${cats.map((k) => `<button class="${shopCat === k ? "on" : ""}" onclick="shopCat='${esc(k)}';render()">${esc(k)}</button>`).join("")}</div>
+     <div class="grid">${D.shop.filter((i) => shopCat === "All" || i.category === shopCat).map((i) => { const bal = me ? me.coins : 0;
+      return `<div class="card item"><div class="img">${esc(i.emoji)}</div><b>${esc(i.name)}</b><p class="mut" style="margin:4px 0 10px">${esc(i.category)} · ${i.stock} left</p>
+       <div class="row"><span class="price">🪙 ${fmt(i.cost)}</span><button class="btn ${bal < i.cost || !i.stock ? "ghost" : ""}" ${!i.stock ? "disabled" : ""} onclick="redeem('${i.id}')">${!i.stock ? "Sold out" : bal < i.cost ? `Need ${fmt(i.cost - bal)}` : "Redeem"}</button></div></div>`; }).join("")}</div>`;
+  }
+
+  // Wallet & coupons
+  $("wbal").textContent = fmt(me ? me.coins : 0); $("wearn").textContent = "+" + fmt(me ? me.stats.coinsEarned : 0); $("wspent").textContent = "−" + fmt(me ? me.stats.coinsSpent : 0);
+  $("hist").innerHTML = me && me.history.length ? `<table><tr><th>Activity</th><th>Coins</th></tr>${me.history.map((h) => `<tr><td>${esc(h.what)}</td><td class="${h.coins > 0 ? "up" : "down"}">${h.coins > 0 ? "+" : ""}${fmt(h.coins)}</td></tr>`).join("")}</table>` : '<span class="mut">No activity yet</span>';
+  $("coupons").innerHTML = me && me.coupons.length ? `<table><tr><th>Code</th><th>Reward</th><th>Status</th></tr>${me.coupons.map((c) => `<tr><td><b>${esc(c.code)}</b></td><td>${esc(c.name)}</td><td class="up">Active</td></tr>`).join("")}</table>` : '<span class="mut">Redeem something in the Rewards Shop to get a coupon.</span>';
+}
+
+ME = load("crx_user") || null;
+refresh().catch((e) => toast("Can't reach the local server: " + e.message, true));
+</script>
+</body></html>
