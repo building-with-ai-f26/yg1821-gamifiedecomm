@@ -61,7 +61,7 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <tr><td>Joining contests</td><td>No limit</td><td>Up to <b>5 live contests</b> at once</td></tr>
 <tr><td>Point rules</td><td>Same values everywhere</td><td>Each contest picks which actions score and how much (a quiz-only contest ignores reviews)</td></tr>
 <tr><td>Earning</td><td>Dropdown on the Products page</td><td><b>Rewards Shop → Earn</b> tab: review, photo, rating, referral, purchase. One action credits every joined contest that scores it.</td></tr>
-<tr><td>Games</td><td>None</td><td><b>AI quiz</b>: 5 questions per play written by Claude, up to 5 plays per contest, no repeated questions</td></tr>
+<tr><td>Games</td><td>None</td><td><b>AI brand quiz</b>: 5 questions per play written by Claude, always about the brand (story, founders, best-sellers, products, upcoming collections, offers), up to 5 plays per contest, no repeated questions</td></tr>
 <tr><td>Contest page</td><td>Prizes and standings</td><td>Tabs: <b>Prizes, Leaderboard, Scoring, How to Play</b>, plus the quiz card</td></tr>
 <tr><td>Leaderboards</td><td>Per contest</td><td>Per contest, plus <b>general leaderboards</b>: most points, quiz plays and coins won; most-reviewed and top-rated products</td></tr>
 <tr><td>Brand side</td><td>Non-goal</td><td><b>Admin panel sketch</b>: analytics, launch/edit contests, quiz topic and difficulty, plays allowed, prizes, Rewards Shop items, AI cost (full version in Build 3)</td></tr>
@@ -103,9 +103,9 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <div class="card">
  <ol style="margin-top:0">
   <li><b>Player app</b> (<code>app/index.html</code>) and <b>brand admin</b> (<code>app/admin.html</code>) run in the browser and talk to one local server, <code>server.js</code>.</li>
-  <li>When the player presses <i>Play quiz</i>, the server checks they joined, the contest is live and plays are left, then reads the contest's quiz settings: topic (GlowCart products / e-commerce / electronics / random), difficulty (easy / medium / hard / mixed) and number of questions.</li>
+  <li>When the player presses <i>Play quiz</i>, the server checks they joined, the contest is live and plays are left, then reads the contest's quiz settings: topic (brand mix / brand story &amp; facts / products &amp; best-sellers / new launches, collections &amp; offers), difficulty (easy / medium / hard / mixed) and number of questions.</li>
   <li>The server calls the <b>Claude API</b> (model <code>claude-haiku-5-5</code>, set in <code>.env</code>) with <b>structured outputs</b>, so the reply is always valid JSON: question, 4 options, correct answer and explanation.
-   <ul><li>For brand quizzes Claude gets only the product catalog, so it can't invent product facts.</li>
+   <ul><li>Every quiz is about the brand: Claude gets only the <b>brand profile</b> (founding year and city, founders, how it started, best-seller, signature ingredient, upcoming collections and dates, offers, shipping and returns) and the <b>product catalog with live sales and ratings</b>, and is told never to ask general-knowledge questions or invent facts.</li>
    <li>It also gets the questions this player has already seen, and the server drops any duplicate.</li></ul></li>
   <li>The server shuffles the options, <b>keeps the answer key</b> (the browser never sees it), and returns the questions. Each answer is checked on the server; at the end, points are added to that contest only.</li>
   <li>Contests, players, points, coins and shop items live in <code>data/db.json</code>. Every AI call is logged with tokens, cost and time; the admin page and <code>npm run usage</code> report them.</li>
@@ -118,11 +118,11 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <table>
 <tr><th></th><th>Claude Haiku 5.5 (current)</th><th>Claude Opus 5.5 (option)</th></tr>
 <tr><td>Price per million tokens (in / out)</td><td>$0.10 / $0.50</td><td>$4 / $20</td></tr>
-<tr><td>One quiz (5 questions; measured ~930 tokens in, ~1,960 out incl. reasoning)</td><td><b>$0.0011</b> (measured)</td><td>≈ $0.043 (estimated)</td></tr>
-<tr><td>One player, 5 plays in a contest</td><td>≈ $0.0055</td><td>≈ $0.21</td></tr>
-<tr><td>1,000 players × 5 plays</td><td>≈ $5.40</td><td>≈ $215</td></tr>
+<tr><td>One brand quiz (5 questions; measured ~2,300 tokens in incl. the brand brief, ~2,550 out incl. reasoning)</td><td><b>$0.0015</b> (measured)</td><td>≈ $0.06 (estimated)</td></tr>
+<tr><td>One player, 5 plays in a contest</td><td>≈ $0.0075</td><td>≈ $0.30</td></tr>
+<tr><td>1,000 players × 5 plays</td><td>≈ $7.50</td><td>≈ $300</td></tr>
 </table>
-<p id="measured-cost"><b>Measured in Build 2 testing (Nov 15):</b> 8 real quizzes on Claude Haiku 5.5 averaged <b>$0.0011 per quiz</b> (934 tokens in / 1,960 out) and <b>9.1 s</b> to generate; all testing cost <b>$0.0086</b> in total. 0 failed calls; 0 repeated questions across one player's 25 questions (5 plays); every answer key I checked was correct, including a brand quiz where all 5 hard questions matched the product catalog. Hosting is $0 (GitHub Pages; the app runs locally) and PostHog is on the free tier. Haiku keeps the AI cost far below the coin prize budget; Build 4 will compare Haiku and Opus on question accuracy before deciding whether Opus is worth ~40× the cost.</p>
+<p id="measured-cost"><b>Measured in Build 2 testing (Nov 15):</b> the brand-only quiz on Claude Haiku 5.5 averaged <b>$0.0015 per quiz</b> and <b>10.6 s</b> to generate (6 quizzes). One player's 5 plays produced <b>25 questions, all about GlowCart, 0 repeats</b>, and every answer matched the brand profile. All AI testing this week (14 quizzes, including an earlier general-knowledge version I replaced) cost <b>$0.018</b>. 0 failed calls. Hosting is $0 (GitHub Pages; the app runs locally) and PostHog is on the free tier. Haiku keeps the AI cost far below the coin prize budget; Build 4 will compare Haiku and Opus on question accuracy before deciding whether Opus is worth ~40× the cost.</p>
 
 <h3>Non-goals (v2)</h3>
 <ol>
@@ -141,9 +141,27 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 cd yg1821-gamifiedecomm &amp;&amp; npm install
 cp .env.example .env    # add ANTHROPIC_API_KEY
 npm start               # player app: localhost:3000 · brand admin: localhost:3000/admin</pre>
+<h3>How to open and check it</h3>
+<ol>
+ <li>Open Terminal in the project folder and run <code>npm start</code> (first time: <code>npm install</code>, and put your <code>ANTHROPIC_API_KEY</code> in <code>.env</code>).</li>
+ <li>Player app: <b>http://localhost:3000</b>. Brand admin sketch: <b>http://localhost:3000/admin</b>. Both work only on the laptop running the server.</li>
+ <li>Click <b>Register</b>, enter a name (you get 500 welcome coins), and join <b>GlowCart Trivia Cup</b> and <b>GlowCart Winter League</b>.</li>
+ <li>Open the Trivia Cup → check the <b>Prizes, Leaderboard, Scoring, How to Play</b> tabs → <b>Play quiz</b>. Answer 5 questions about GlowCart; see right/wrong and the explanation; finish to see points added and your new rank.</li>
+ <li>Play again (up to 5 times): every play has new questions. Press <b>Switch player</b> to play as a second person and watch the leaderboard change.</li>
+ <li><b>Rewards Shop → Earn</b>: rate or review a product and see points added to each joined contest that scores it. <b>Redeem</b> spends coins.</li>
+ <li>Open <b>/admin</b> to show the brand view: players, quiz plays, points awarded, the brand profile the quiz uses, and AI cost per quiz.</li>
+</ol>
 <div class="gallery" id="app2-shots">
- <figure><img class="shot" src="img/quiz-question.jpg" alt="AI quiz question with the correct answer highlighted and an explanation"><figcaption>AI quiz: Claude-written question, answer checked by the server, one-line explanation (play 2 of 5)</figcaption></figure>
- <figure><img class="shot" src="img/quiz-leaderboard.jpg" alt="Contest leaderboard after quiz plays"><figcaption>Leaderboard moves after each play: player 1 climbed from #13 to #5 across 5 plays</figcaption></figure>
+ <figure><img class="shot" src="img/v2-contests.jpg" alt="Contest lobby with four live contests"><figcaption>Contests: join up to 5 live contests; each shows its quiz topic and top prize</figcaption></figure>
+ <figure><img class="shot" src="img/v2-contest-scoring.jpg" alt="Contest page with tabs and quiz card"><figcaption>Contest page: Prizes, Leaderboard, Scoring and How to Play tabs plus the quiz card (5 plays)</figcaption></figure>
+ <figure><img class="shot" src="img/quiz-question.jpg" alt="Brand quiz question about GlowCart's best-selling product"><figcaption>AI quiz about the brand: answer checked on the server, with a one-line explanation</figcaption></figure>
+ <figure><img class="shot" src="img/v2-quiz-result.jpg" alt="Quiz result: perfect score, +75 points"><figcaption>Result: 5/5 → +75 points, added to this contest only; 4 plays left</figcaption></figure>
+ <figure><img class="shot" src="img/quiz-leaderboard.jpg" alt="Contest leaderboard with the player highlighted at rank 9"><figcaption>Leaderboard moves: one perfect quiz took the player from #14 to #9</figcaption></figure>
+ <figure><img class="shot" src="img/v2-shop-earn.jpg" alt="Rewards Shop Earn tab"><figcaption>Rewards Shop → Earn: each action shows how many points and how many joined contests it counts in</figcaption></figure>
+ <figure><img class="shot" src="img/v2-leaderboards.jpg" alt="General leaderboards"><figcaption>General leaderboards: players by points and quiz plays; products by reviews and rating</figcaption></figure>
+ <figure><img class="shot" src="img/v2-admin-overview.jpg" alt="Brand admin overview"><figcaption>Brand admin (sketch): players, joins, quiz plays, average score, points, coins, AI cost, live activity</figcaption></figure>
+ <figure><img class="shot" src="img/v2-admin-contest.jpg" alt="Admin contest editor"><figcaption>Admin: launch or edit a contest: which actions score, quiz topic, difficulty, questions, plays, prizes</figcaption></figure>
+ <figure><img class="shot" src="img/v2-admin-ai-cost.jpg" alt="Admin AI cost log"><figcaption>Admin: every AI call logged with tokens, cost and time ($0.0015 per quiz on Haiku 5.5)</figcaption></figure>
 </div>
 </section>
 
@@ -243,8 +261,8 @@ npm start               # player app: localhost:3000 · brand admin: localhost:3
 <tr><td>Build 2<br>Nov 14–15</td><td>
  <p><b>What works:</b> a local app (Node server + Claude API) with an <b>AI-written quiz</b> in each contest: 5 questions per play, up to 5 plays, no repeated questions, answers checked on the server, points added to that contest's leaderboard. Points are now per contest and coins are the wallet (prizes and Rewards Shop). Players can join up to 5 contests; the Rewards Shop Earn tab credits every joined contest that scores an action. The contest page has Prizes, Leaderboard, Scoring and How to Play tabs; general leaderboards; a brand admin sketch (analytics, launch/edit contests, quiz settings, shop items, AI cost). PostHog runs on the Product Page, prototype and app with session replay and custom quiz events. AGENTS.md documents structure and run steps; BACKLOG.md tracks what's pending.</p>
  <p><b>What I learned:</b> structured outputs make the AI reply dependable: the server always gets question, options, answer and explanation as JSON, so the quiz never breaks on a badly formatted reply. Keeping the answer key on the server matters as soon as a leaderboard has prizes. Giving the model only the brand catalog keeps brand questions factual, and starting with the cheapest model (Haiku 5.5) with the model name in <code>.env</code> makes switching to Opus a one-line change once evals show it's needed.</p>
- <p><b>What broke / changed:</b> I first planned an AI review checker, then switched to the brand quiz because it tests engagement, the risk brands care about. Mid-build the points model changed: points per contest, coins only as prizes, which meant moving data to a small server so the admin and player pages share it. The prototype file came read-only from the zip; Python's local server couldn't read the Desktop folder (switched to Node); session replay looked off on localhost because the browser cached PostHog's settings for 5 minutes.</p>
- <p><b>Costs:</b> Claude API for quiz generation: <b>$0.0086</b> for 8 test quizzes (Claude Haiku 5.5, $0.0011 per quiz, 9.1 s average). Agent usage covered by my Claude Pro subscription ($20/month). PostHog free tier; GitHub Pages free.</p>
+ <p><b>What broke / changed:</b> I first planned an AI review checker, then switched to the brand quiz because it tests engagement, the risk brands care about. The first quiz version asked general-knowledge questions; I made every quiz brand-only by giving the AI a brand profile (founding, founders, best-seller, upcoming collections, offers) and banning general trivia. Mid-build the points model changed: points per contest, coins only as prizes, which meant moving data to a small server so the admin and player pages share it. The prototype file came read-only from the zip; Python's local server couldn't read the Desktop folder (switched to Node); session replay looked off on localhost because the browser cached PostHog's settings for 5 minutes.</p>
+ <p><b>Costs:</b> Claude API for quiz generation: <b>$0.018</b> for 14 test quizzes (Claude Haiku 5.5; $0.0015 per brand quiz, 10.6 s average). Agent usage covered by my Claude Pro subscription ($20/month). PostHog free tier; GitHub Pages free.</p>
  <p><b>Hours:</b> <span class="fill">add Build 2 hours</span>.</p>
 </td></tr>
 <tr><td>Build 1<br>Nov 7–8</td><td>

@@ -8,6 +8,7 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 - [ ] **Multi-brand (vendor) support**: each brand gets its own catalog, contests and shop; today there is one brand (GlowCart).
 - [ ] **Contest scheduling**: start and end dates, auto-end with automatic prize payout (today: manual "End & pay").
 - [ ] **Brand product catalog editor**: add or edit products and details used by the brand quiz (today: seeded in `server.js`).
+- [ ] **Brand profile editor**: brand admins write their own facts (founding, founders, best-sellers, next collection dates, offers) that the quiz uses; warn when a fact is out of date (e.g. a launch date has passed).
 - [ ] **Admin quiz review**: approve, edit or ban AI questions before they go live; flag reported questions.
 - [ ] **Analytics charts**: daily active players, quiz funnel, retention, per-contest trends (PostHog dashboards plus in-app charts).
 

@@ -44,7 +44,7 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
   <button data-s="contests" onclick="go('contests')">🏅 Contests</button>
   <button data-s="shop" onclick="go('shop')">🎁 Rewards Shop</button>
   <button data-s="players" onclick="go('players')">👥 Players</button>
-  <button data-s="products" onclick="go('products')">🛍️ Products</button>
+  <button data-s="products" onclick="go('products')">🛍️ Brand & products</button>
   <button data-s="ai" onclick="go('ai')">🧠 AI quiz & cost</button>
  </div>
  <div class="side-foot"><a href="/">← Player app</a><br><br>Local demo: no admin login yet.<br><br><button class="btn danger" onclick="resetDemo()">Reset demo data</button></div>
@@ -76,8 +76,9 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
 </section>
 
 <section class="screen" id="s-products">
- <h1>🛍️ Products</h1><p class="mut">Catalog used by the Rewards Shop Earn tab and by brand quizzes.</p>
- <div class="card" id="producttable"></div>
+ <h1>🛍️ Brand & products</h1><p class="mut">The AI quiz only uses this brand profile and catalog, so every question is about the brand. Editing comes in Build 3.</p>
+ <h2>Brand profile</h2><div class="card" id="brandfacts"></div>
+ <h2>Product catalog</h2><div class="card" id="producttable"></div>
 </section>
 
 <section class="screen" id="s-ai">
@@ -150,7 +151,8 @@ function render() {
   // Players
   $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
 
-  // Products
+  // Brand profile + products
+  $("brandfacts").innerHTML = `<b>${esc(O.brand.name)}</b> <span class="pill">${esc(O.brand.industry)}</span><ul>${O.brand.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
   $("producttable").innerHTML = `<table><tr><th>Product</th><th>Price</th><th>Reviews</th><th>Avg rating</th><th>Purchases</th><th>Details (used by brand quiz)</th></tr>${O.products.map((p) => `<tr><td>${p.emoji} <b>${esc(p.name)}</b><br><small class="mut">${esc(p.category)}</small></td><td>₹${fmt(p.price)}</td><td>${p.reviews}</td><td>${p.avgRating}★ (${p.ratingCount})</td><td>${p.purchases}</td><td><small class="mut">${esc(p.details)}</small></td></tr>`).join("")}</table>`;
 
   // AI
@@ -167,7 +169,7 @@ function render() {
 
 // ---------- Contest form ----------
 function editContest(id) {
-  const c = id ? O.contests.find((x) => x.id === id) : { name: "", desc: "", entry: { type: "free", fee: 0 }, scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 }, quiz: { enabled: true, topic: "brand", difficulty: "mixed", questions: 5, maxPlays: 5 }, prizes: [{ upTo: 1, coins: 1000, note: "" }, { upTo: 2, coins: 500, note: "" }, { upTo: 3, coins: 250, note: "" }] };
+  const c = id ? O.contests.find((x) => x.id === id) : { name: "", desc: "", entry: { type: "free", fee: 0 }, scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 }, quiz: { enabled: true, topic: "brand_mix", difficulty: "mixed", questions: 5, maxPlays: 5 }, prizes: [{ upTo: 1, coins: 1000, note: "" }, { upTo: 2, coins: 500, note: "" }, { upTo: 3, coins: 250, note: "" }] };
   editingContest = JSON.parse(JSON.stringify(c)); render(); window.scrollTo(0, 0);
 }
 function contestForm(c) {

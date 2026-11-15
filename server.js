@@ -40,12 +40,43 @@ const ACTIONS = {
   quiz_perfect: "Quiz: perfect-score bonus",
 };
 
+// Every quiz is about the contest's brand: never general knowledge. Facts come only from the brand profile + catalog.
 const TOPICS = {
-  brand: "Brand: GlowCart products",
-  ecommerce: "E-commerce & online shopping",
-  electronics: "Consumer electronics",
-  random: "Random general knowledge",
+  brand_mix: "Brand mix: story, products & launches",
+  brand_story: "Brand story & facts",
+  brand_products: "Products & best-sellers",
+  brand_launches: "New launches, collections & offers",
 };
+const DEFAULT_TOPIC = "brand_mix";
+
+// Brand profile the admin will edit in Build 3 (fictional demo brand).
+function seedBrand() {
+  return {
+    name: "GlowCart",
+    industry: "D2C beauty & lifestyle e-commerce (India)",
+    facts: [
+      "GlowCart was founded in 2019 in Mumbai, India.",
+      "Founders: Ananya Rao and Kabir Mehta.",
+      "GlowCart started as an Instagram shop selling one product: the Rose Hand Balm.",
+      "GlowCart launched its own website (D2C store) in 2020.",
+      "Brand promise: clean, fragrance-light beauty made for Indian weather.",
+      "Best-selling product of all time: Rose Hand Balm.",
+      "Signature ingredient used across the range: rosehip oil.",
+      "GlowCart passed 120,000 customers in 2026.",
+      "First offline pop-up store: Bandra, Mumbai, opened in 2024.",
+      "All GlowCart products are cruelty-free.",
+      "Refill pouches for the Rose Hand Balm have been sold since 2022.",
+      "Next collection: the Spring Bloom collection launches on 1 March 2027.",
+      "Spring Bloom collection items: a peach-shade lip tint, an SPF 50 gel sunscreen and a linen tote bag.",
+      "VIP Insiders Cup winners get the Spring Bloom collection before everyone else.",
+      "Coming after Spring Bloom: a Monsoon Repair hair serum, planned for June 2027.",
+      "Coupon code GLOWLEAGUE gives 10% off for GlowCart League players.",
+      "Free shipping on orders above ₹999.",
+      "Delivery across India takes 2–5 days.",
+      "Returns: 15 days on unopened products.",
+    ],
+  };
+}
 const DIFFICULTIES = ["easy", "medium", "hard", "mixed"];
 
 // ---------- Seed data (fictional brand) ----------
@@ -57,7 +88,7 @@ function seed() {
      ["Aisha T", 290], ["Kabir V", 240], ["Meera J", 180], ["Dev P", 130], ["Sana R", 85], ["Ishaan G", 40]]
       .map(([name, pts]) => ({ name, points: Math.round(pts * scale), seeded: true }));
   return {
-    brand: { name: "GlowCart", category: "Beauty & lifestyle" },
+    brand: seedBrand(),
     products: [
       { id: "p1", name: "Winter Glow Serum", emoji: "🧴", price: 1299, category: "Skincare", details: "30 ml vitamin C and hyaluronic acid serum for dull winter skin; use 2–3 drops every morning before moisturiser; suitable for all skin types; fragrance-free." },
       { id: "p2", name: "Velvet Lip Tint", emoji: "💄", price: 599, category: "Makeup", details: "Matte-finish lip tint in 6 shades; infused with shea butter; lasts up to 8 hours; vegan and cruelty-free." },
@@ -90,16 +121,16 @@ function seed() {
         entry: { type: "free", fee: 0 },
         prizes: [{ upTo: 1, coins: 1000, note: "+ Winter Hamper" }, { upTo: 2, coins: 600 }, { upTo: 3, coins: 400 }, { upTo: 10, coins: 150 }],
         scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 },
-        quiz: { enabled: true, topic: "brand", difficulty: "mixed", questions: 5, maxPlays: 5 },
+        quiz: { enabled: true, topic: "brand_mix", difficulty: "mixed", questions: 5, maxPlays: 5 },
         seedPlayers: rivals(1),
       },
       {
         id: "trivia", name: "GlowCart Trivia Cup", tag: "FREE ENTRY · Quiz only · 7 days", status: "live", endsAt: now + 5 * day,
-        desc: "Pure quiz contest. Answer AI-generated questions; only quiz points count.",
+        desc: "How well do you know GlowCart? Answer AI-written questions about the brand, its best-sellers and new launches; only quiz points count.",
         entry: { type: "free", fee: 0 },
         prizes: [{ upTo: 1, coins: 1000 }, { upTo: 2, coins: 500 }, { upTo: 3, coins: 250 }],
         scoring: { review: 0, photo: 0, rating: 0, referral: 0, purchase: 0, quiz_correct: 10, quiz_perfect: 25 },
-        quiz: { enabled: true, topic: "random", difficulty: "medium", questions: 5, maxPlays: 5 },
+        quiz: { enabled: true, topic: "brand_mix", difficulty: "medium", questions: 5, maxPlays: 5 },
         seedPlayers: rivals(0.35),
       },
       {
@@ -108,7 +139,7 @@ function seed() {
         entry: { type: "coins", fee: 50 },
         prizes: [{ upTo: 1, coins: 2500 }, { upTo: 2, coins: 1500 }, { upTo: 3, coins: 1000 }, { upTo: 10, coins: 300 }],
         scoring: { review: 15, photo: 20, rating: 5, referral: 0, purchase: 40, quiz_correct: 0, quiz_perfect: 0 },
-        quiz: { enabled: false, topic: "ecommerce", difficulty: "easy", questions: 5, maxPlays: 5 },
+        quiz: { enabled: false, topic: "brand_launches", difficulty: "easy", questions: 5, maxPlays: 5 },
         seedPlayers: rivals(0.4),
       },
       {
@@ -117,7 +148,7 @@ function seed() {
         entry: { type: "pass", fee: 0 },
         prizes: [{ upTo: 1, coins: 3000, note: "+ Full Spring collection" }, { upTo: 2, coins: 1500 }, { upTo: 3, coins: 1000 }],
         scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 15, quiz_perfect: 40 },
-        quiz: { enabled: true, topic: "brand", difficulty: "hard", questions: 5, maxPlays: 3 },
+        quiz: { enabled: true, topic: "brand_products", difficulty: "hard", questions: 5, maxPlays: 3 },
         seedPlayers: rivals(0.7),
       },
     ],
@@ -131,7 +162,11 @@ function seed() {
 let db;
 function load() {
   try { db = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); }
-  catch { db = seed(); save(); }
+  catch { db = seed(); save(); return; }
+  // Upgrade older demo data: brand profile + brand-only quiz topics.
+  if (!Array.isArray(db.brand?.facts)) db.brand = seedBrand();
+  for (const c of db.contests) if (!TOPICS[c.quiz.topic]) c.quiz.topic = DEFAULT_TOPIC;
+  save();
 }
 function save() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -200,12 +235,20 @@ const QuizSchema = z.object({
   })),
 });
 
-const TOPIC_RULES = {
-  brand: (cat) => `Topic: the brand GlowCart and its products. Use ONLY facts stated in this product catalog. Never invent ingredients, sizes, prices, shades or claims that are not in it.\nCatalog (JSON):\n${JSON.stringify(cat)}`,
-  ecommerce: () => "Topic: e-commerce and online shopping in general (payments, delivery, returns, coupons, marketplaces, online-shopping history and well-known terms). Only use facts that are widely established and not likely to change.",
-  electronics: () => "Topic: consumer electronics (phones, laptops, audio, chargers, displays, common specs and terms). Only use facts that are widely established and not likely to change; avoid current prices and model launch rumours.",
-  random: () => "Topic: a random mix of family-friendly general knowledge (science, geography, food, sport, pop culture). Only use well-established facts.",
+const TOPIC_FOCUS = {
+  brand_mix: "Mix the questions across the brand's story, its products and best-sellers, and its upcoming launches and offers.",
+  brand_story: "Focus on the brand's story and facts: founding year and city, founders, how it started, its promise, milestones, stores and values.",
+  brand_products: "Focus on the brand's products: what they contain, how to use them, sizes, shades, prices, ratings and which products sell best.",
+  brand_launches: "Focus on what's new and next: upcoming collections and launch dates, what's in them, who gets early access, plus current offers, shipping and returns.",
 };
+// Everything the model may use: brand profile + live catalog stats (so "best-seller" and "top-rated" questions match the shop).
+function brandBrief() {
+  const products = db.products.map((p) => {
+    const s = db.productStats[p.id];
+    return { name: p.name, category: p.category, price_inr: p.price, details: p.details, purchases: s.purchases, reviews: s.reviews, avg_rating: Math.round(avg(s.ratings) * 10) / 10 };
+  });
+  return { brand: db.brand.name, industry: db.brand.industry, facts: db.brand.facts, products };
+}
 const DIFFICULTY_RULES = {
   easy: "All questions easy: most shoppers would know the answer.",
   medium: "All questions medium: needs some knowledge or careful reading.",
@@ -223,12 +266,15 @@ function claude() {
 async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = null, purpose = "play" }) {
   const anthropic = claude();
   const system = [
-    "You write multiple-choice quiz questions for a shopping-rewards contest app. Players earn contest points for correct answers, so every question must be accurate and fair.",
+    `You write multiple-choice quiz questions for ${db.brand.name}'s shopping-rewards contest. The quiz exists so shoppers get to know the brand: every question must be about ${db.brand.name} itself (its story, people, products, best-sellers, launches, collections, offers or policies). Never ask general-knowledge or industry trivia that isn't about this brand.`,
+    "Use ONLY facts stated in the brand brief you are given. Never invent dates, names, ingredients, prices, shades, launches or claims. Players earn contest points for correct answers, so every question must be accurate and fair.",
+    "Wrong options must be plausible but clearly false according to the brief (e.g. another product's ingredient, a different year).",
     "Rules: exactly 4 answer options per question, exactly one correct; no 'all/none of the above'; no trick wording; keep each question under 25 words and each option under 8 words; explanation is one short sentence (under 25 words) saying why the answer is right.",
     "Set each question's difficulty field honestly.",
   ].join("\n");
   const userMsg = [
-    TOPIC_RULES[topic](db.products.map(({ name, price, category, details }) => ({ name, price_inr: price, category, details }))),
+    `Brand brief (JSON):\n${JSON.stringify(brandBrief())}`,
+    TOPIC_FOCUS[topic] || TOPIC_FOCUS[DEFAULT_TOPIC],
     DIFFICULTY_RULES[difficulty],
     // Ask for 2 spares so we can drop any duplicates of questions this player has already seen.
     `Write exactly ${count + 2} questions, all different from each other.`,
@@ -511,7 +557,7 @@ Object.assign(routes, {
         recent: ai.slice(-10).reverse(),
       },
       recentEvents: ev.slice(-25).reverse().map((e) => ({ ...e, user: e.user ? db.users[e.user]?.name ?? e.user : undefined })),
-      topics: TOPICS, difficulties: DIFFICULTIES, actions: ACTIONS,
+      topics: TOPICS, difficulties: DIFFICULTIES, actions: ACTIONS, brand: db.brand,
     };
   },
 
@@ -520,7 +566,7 @@ Object.assign(routes, {
     const isNew = !b.id;
     const c = isNew ? null : contestById(b.id);
     const name = String(b.name || "").trim() || fail(400, "Contest needs a name");
-    const topic = TOPICS[b.quiz?.topic] ? b.quiz.topic : "brand";
+    const topic = TOPICS[b.quiz?.topic] ? b.quiz.topic : DEFAULT_TOPIC;
     const difficulty = DIFFICULTIES.includes(b.quiz?.difficulty) ? b.quiz.difficulty : "mixed";
     const entryType = ["free", "coins", "pass"].includes(b.entry?.type) ? b.entry.type : "free";
     const prizes = (Array.isArray(b.prizes) ? b.prizes : []).map((p) => ({ upTo: num(p.upTo, 1) || 1, coins: num(p.coins), note: String(p.note || "").slice(0, 60) }))
@@ -588,7 +634,7 @@ Object.assign(routes, {
 
   // Let the brand preview what the AI writes for a topic/difficulty before launching.
   "POST /api/admin/quiz-preview": async (_, b) => {
-    const topic = TOPICS[b.topic] ? b.topic : "brand";
+    const topic = TOPICS[b.topic] ? b.topic : DEFAULT_TOPIC;
     const difficulty = DIFFICULTIES.includes(b.difficulty) ? b.difficulty : "mixed";
     const questions = await generateQuiz({ topic, difficulty, count: Math.min(10, Math.max(3, num(b.questions, 5))), purpose: "admin_preview" });
     return { questions };

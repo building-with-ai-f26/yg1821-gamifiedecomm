@@ -33,6 +33,7 @@
 - A player can be in at most `MAX_ACTIVE_CONTESTS` (5) live contests. An Earn action credits every joined live contest whose `scoring[action] > 0`.
 - Quiz points go only to the contest the quiz was played in. A play is used only when questions were generated successfully.
 - The quiz answer key stays on the server; never send `correct` indexes to the browser before the player answers.
+- **Every quiz question is about the contest's brand** (story, founders, products, best-sellers, launches, offers, policies). The AI may only use facts in `db.brand.facts` and the product catalog (`brandBrief()` in `server.js`); never add general-knowledge topics.
 - Every AI call is logged in `db.aiUsage` with tokens, cost and time; keep that when changing the AI code.
 - Model is set by `ANTHROPIC_MODEL` in `.env` (default `claude-haiku-5-5`); never hardcode keys.
 

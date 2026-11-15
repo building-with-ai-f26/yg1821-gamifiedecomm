@@ -43,9 +43,9 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 
 ## 5. What it cost
 - **Agent spend:** $0 extra; Claude Code is covered by Claude Pro ($20/month).
-- **API runtime spend (quiz generation):** $0.0086 for 8 test quizzes (Nov 15), from `npm run usage`.
-- **Cost per quiz (5 questions):** $0.0011 measured on Claude Haiku 5.5; 9.1 s average generation time; 0 failed calls.
-- **Tokens per quiz:** 934 in / 1,960 out on average (output includes the model's reasoning and 2 spare questions used to drop repeats).
+- **API runtime spend (quiz generation):** $0.018 for 14 test quizzes (Nov 15): $0.0086 for 8 general-knowledge quizzes (first version) + $0.0089 for 6 brand-only quizzes.
+- **Cost per quiz (5 questions):** $0.0015 per brand quiz on Claude Haiku 5.5 (was $0.0011 before the brand brief was added); 10.6 s average generation time; 0 failed calls.
+- **Tokens per quiz:** about 2,300 in (the brand brief) / 2,550 out on average (output includes the model's reasoning and 2 spare questions used to drop repeats).
 - **Hosting:** $0 (GitHub Pages free; app runs locally).
 - **Your hours spent this week:** `___ hrs`
 - **Cumulative project spend to date:** `$___`
@@ -57,6 +57,8 @@ Working log for Build 2. The required build log is on `docs/index.html`; this fi
 - Leaderboard: player 1 moved #9 → #8 → #7 → #6 → #5; player 2 listed separately with their own points.
 - Brand quiz (VIP, hard): all 5 questions matched the GlowCart catalog; no invented facts.
 - Earn actions: points credited only to joined contests that score the action (quiz-only contest ignored reviews).
+- Brand-only quiz (after the change): 5 plays → 25 questions, all about GlowCart (founders, founding, Instagram start, best-seller, Spring Bloom launch, Monsoon Repair serum, coupon, shipping, returns, product details), 0 repeats, every answer matches the brand profile.
+- Change requested: questions must be brand-specific, not general knowledge. Replaced the random, e-commerce and electronics topics with 4 brand topics and a brand profile.
 - Small fix found while testing: points and plays behind the quiz results popup now update immediately.
 
 ## 6. Pod Critique Sign-off
