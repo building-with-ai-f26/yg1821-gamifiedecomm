@@ -78,6 +78,8 @@ if (!LIVE) {
   check("B can't copy a leaderboard player's name (409)", r.status === 409, `got ${r.status}`);
   r = await call("/api/admin/overview", { cookie: B.cookie });
   check("Non-admin player refused from admin API (403)", r.status === 403, `got ${r.status}`);
+  r = await call("/api/admin/brand", { cookie: B.cookie, body: { facts: "Fake fact one\nFake fact two\nFake fact three" } });
+  check("Non-admin can't edit the brand facts the quiz uses (403)", r.status === 403, `got ${r.status}`);
   if (process.env.ADMIN_EMAIL) {
     const ADM = await signIn(process.env.ADMIN_EMAIL);
     r = await call("/api/admin/overview", { cookie: ADM.cookie });
@@ -90,6 +92,11 @@ if (!LIVE) {
     check("Quiz sent to browser without answer key", qa.status === 200 && !JSON.stringify(qa.data).includes('"correct"'));
     r = await call("/api/quiz/answer", { cookie: B.cookie, body: { quizId: qa.data?.quizId, index: 0, choice: 0 } });
     check("B can't answer A's quiz (403)", r.status === 403, `got ${r.status}`);
+    // Question pools: A's quiz set is kept, so B's first quiz starts instantly without a new AI call.
+    await call("/api/join", { cookie: B.cookie, body: { contestId: "trivia" } });
+    const t0 = Date.now();
+    const qb = await call("/api/quiz/start", { cookie: B.cookie, body: { contestId: "trivia" } });
+    check("Second player's quiz comes from the pool (under 1 s)", qb.status === 200 && Date.now() - t0 < 1000, `${Date.now() - t0} ms`);
   }
   r = await call("/api/auth/logout", { cookie: A.cookie, body: {} });
   r = await call("/api/join", { cookie: A.cookie, body: { contestId: "trivia" } });

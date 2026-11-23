@@ -85,9 +85,9 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
 </section>
 
 <section class="screen" id="s-products">
- <h1>🛍️ Brand & products</h1><p class="mut">The AI quiz only uses this brand profile and catalog, so every question is about the brand. Editing comes in Build 3.</p>
- <h2>Brand profile</h2><div class="card" id="brandfacts"></div>
- <h2>Product catalog</h2><div class="card" id="producttable"></div>
+ <h1>🛍️ Brand & products</h1><p class="mut">Brand quiz questions may only use this brand profile and catalog. Saving a change clears the ready-made question pools, so new quizzes use the new facts.</p>
+ <div class="row"><h2>Brand profile</h2><button class="btn ghost" onclick="editBrand()">Edit brand facts</button></div><div id="brandform"></div><div class="card" id="brandfacts"></div>
+ <div class="row"><h2>Product catalog</h2><button class="btn" onclick="editProduct()">+ Add product</button></div><div id="productform"></div><div class="card" id="producttable"></div>
 </section>
 
 <section class="screen" id="s-ai">
@@ -106,11 +106,12 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
 <div class="toast" id="toast"></div>
 
 <script>
-let O = null, editingContest = null, editingItem = null;
+let O = null, editingContest = null, editingItem = null, editingBrand = false, editingProduct = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString();
 const usd = (n) => n == null ? "—" : "$" + (n < 0.01 ? n.toFixed(5) : n.toFixed(3));
+const when = (t) => new Date(t).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : s < 86400 ? `${Math.round(s / 3600)}h ago` : `${Math.round(s / 86400)}d ago`; };
 function toast(msg, bad) { const t = $("toast"); t.textContent = msg; t.style.background = bad ? "var(--red)" : "var(--ok)"; t.style.color = bad ? "#2a0505" : "#052a1b"; t.style.display = "block"; clearTimeout(t._x); t._x = setTimeout(() => (t.style.display = "none"), 2800); }
 async function api(path, body) {
@@ -135,10 +136,11 @@ function go(s) { document.querySelectorAll(".screen").forEach((e) => e.classList
 const EVENT_TEXT = {
   registered: (e) => `${e.user} registered`, joined: (e) => `${e.user} joined ${cname(e.contestId)}${e.fee ? ` (paid ${e.fee} coins)` : ""}`,
   points: (e) => `${e.user} +${e.points} pts in ${cname(e.contestId)} · ${e.reason}`, action: (e) => `${e.user}: ${e.action} on ${e.productId}`,
-  quiz_started: (e) => `${e.user} started quiz play ${e.play} in ${cname(e.contestId)}`, quiz_answer: (e) => `${e.user} answered a quiz question (${e.correct ? "right" : "wrong"})`,
+  quiz_started: (e) => `${e.user} started quiz play ${e.play} in ${cname(e.contestId)}${e.source === "pool" ? " (instant, from pool)" : ""}`, quiz_answer: (e) => `${e.user} answered a quiz question (${e.correct ? "right" : "wrong"})`,
   quiz_completed: (e) => `${e.user} finished a quiz: ${e.correct}/${e.total} → +${e.points} pts`, redeemed: (e) => `${e.user} redeemed an item for ${e.coins} coins`,
   prize_paid: (e) => `${e.user} won ${e.coins} coins (#${e.rank} in ${cname(e.contestId)})`, contest_launched: (e) => `Contest launched: ${cname(e.contestId)}`,
-  contest_updated: (e) => `Contest updated: ${cname(e.contestId)}`, contest_ended: (e) => `Contest ended: ${cname(e.contestId)}`,
+  contest_updated: (e) => `Contest updated: ${cname(e.contestId)}`, contest_ended: (e) => `Contest ended${e.how === "auto" ? " automatically at its end date" : ""}: ${cname(e.contestId)}`,
+  brand_updated: (e) => `Brand profile updated (${e.facts} facts)`, product_added: (e) => `Product added: ${e.item}`, product_updated: (e) => `Product updated: ${e.item}`, product_removed: (e) => `Product removed: ${e.item}`,
   shop_item_added: (e) => `Shop item added: ${e.item}`, shop_item_updated: (e) => `Shop item updated: ${e.item}`, shop_item_removed: (e) => `Shop item removed: ${e.item}`,
 };
 const cname = (id) => (O.contests.find((c) => c.id === id) || {}).name || id;
@@ -155,10 +157,10 @@ function render() {
 
   // Contests
   $("contesttable").innerHTML = `<table><tr><th>Contest</th><th>Entry</th><th>Points rules</th><th>Quiz</th><th>Prizes</th><th></th></tr>${O.contests.map((c) => `<tr>
-   <td><b>${esc(c.name)}</b> <span class="pill ${c.status}">${c.status}</span><br><small class="mut">${esc(c.desc)}</small></td>
+   <td><b>${esc(c.name)}</b> <span class="pill ${c.status}">${c.status}</span><br><small class="mut">${esc(c.desc)}</small><br><small>${c.status === "live" ? `Ends ${when(c.endsAt)} · pays prizes automatically` : `Ended ${c.endedAt ? when(c.endedAt) : ""}`}</small></td>
    <td>${c.entry.type === "coins" ? `${c.entry.fee} coins` : c.entry.type === "pass" ? "VIP pass" : "Free"}</td>
    <td><small>${Object.entries(c.scoring).filter(([, v]) => v > 0).map(([k, v]) => `${esc(O.actions[k])}: <b>+${v}</b>`).join("<br>") || "—"}</small></td>
-   <td>${c.quiz.enabled ? `<small>${esc(O.topics[c.quiz.topic])}<br>${esc(c.quiz.difficulty)} · ${c.quiz.questions} Qs · ${c.quiz.maxPlays} plays</small>` : '<span class="mut">Off</span>'}</td>
+   <td>${c.quiz.enabled ? `<small>${esc(O.topics[c.quiz.topic])}<br>${esc(c.quiz.difficulty)} · ${c.quiz.questions} Qs · ${c.quiz.maxPlays} plays<br>Question pool: <b>${c.pool.sets}/${c.pool.target}</b> ready sets · ${c.pool.fromPool} instant plays</small>${c.status === "live" ? `<br><button class="btn ghost" style="margin-top:6px;padding:5px 9px" onclick="fillPool('${c.id}', this)">+ Fill pool</button>` : ""}` : '<span class="mut">Off</span>'}</td>
    <td><small>${c.prizes.map((p) => `≤#${p.upTo}: ${fmt(p.coins)} ${esc(p.note || "")}`).join("<br>")}</small></td>
    <td style="white-space:nowrap">${c.status === "live" ? `<button class="btn ghost" onclick="editContest('${c.id}')">Edit</button> <button class="btn danger" onclick="endContest('${c.id}')">End & pay</button>` : ""}</td></tr>`).join("")}</table>`;
   $("contestform").innerHTML = editingContest ? contestForm(editingContest) : "";
@@ -168,11 +170,13 @@ function render() {
   $("itemform").innerHTML = editingItem ? itemForm(editingItem) : "";
 
   // Players
-  $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Email</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)}</small></td><td><small>${esc(u.email)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
+  $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Email</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)} · last active ${ago(u.lastSeen)}</small></td><td><small>${esc(u.email)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
 
   // Brand profile + products
   $("brandfacts").innerHTML = `<b>${esc(O.brand.name)}</b> <span class="pill">${esc(O.brand.industry)}</span><ul>${O.brand.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
-  $("producttable").innerHTML = `<table><tr><th>Product</th><th>Price</th><th>Reviews</th><th>Avg rating</th><th>Purchases</th><th>Details (used by brand quiz)</th></tr>${O.products.map((p) => `<tr><td>${p.emoji} <b>${esc(p.name)}</b><br><small class="mut">${esc(p.category)}</small></td><td>₹${fmt(p.price)}</td><td>${p.reviews}</td><td>${p.avgRating}★ (${p.ratingCount})</td><td>${p.purchases}</td><td><small class="mut">${esc(p.details)}</small></td></tr>`).join("")}</table>`;
+  $("producttable").innerHTML = `<table><tr><th>Product</th><th>Price</th><th>Reviews</th><th>Avg rating</th><th>Purchases</th><th>Details (used by brand quiz)</th><th></th></tr>${O.products.map((p) => `<tr><td>${esc(p.emoji)} <b>${esc(p.name)}</b><br><small class="mut">${esc(p.category)}</small></td><td>₹${fmt(p.price)}</td><td>${p.reviews}</td><td>${p.avgRating}★ (${p.ratingCount})</td><td>${p.purchases}</td><td><small class="mut">${esc(p.details)}</small></td><td style="white-space:nowrap"><button class="btn ghost" onclick="editProduct('${p.id}')">Edit</button> <button class="btn danger" onclick="deleteProduct('${p.id}')">Remove</button></td></tr>`).join("")}</table>`;
+  if (!editingBrand) $("brandform").innerHTML = "";
+  if (!editingProduct) $("productform").innerHTML = "";
 
   // AI
   const A = O.ai;
@@ -183,12 +187,12 @@ function render() {
     $("pv-topic").innerHTML = Object.entries(O.topics).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
     $("pv-diff").innerHTML = O.difficulties.map((d) => `<option>${d}</option>`).join("");
   }
-  $("brandsub").textContent = "GlowCart · local demo";
+  $("brandsub").textContent = O.brand.name;
 }
 
 // ---------- Contest form ----------
 function editContest(id) {
-  const c = id ? O.contests.find((x) => x.id === id) : { name: "", desc: "", entry: { type: "free", fee: 0 }, scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 }, quiz: { enabled: true, topic: "brand_mix", difficulty: "mixed", questions: 5, maxPlays: 5 }, prizes: [{ upTo: 1, coins: 1000, note: "" }, { upTo: 2, coins: 500, note: "" }, { upTo: 3, coins: 250, note: "" }] };
+  const c = id ? O.contests.find((x) => x.id === id) : { name: "", desc: "", entry: { type: "free", fee: 0 }, scoring: { review: 10, photo: 15, rating: 3, referral: 20, purchase: 30, quiz_correct: 10, quiz_perfect: 25 }, quiz: { enabled: true, topic: "mix", difficulty: "mixed", questions: 5, maxPlays: 5 }, prizes: [{ upTo: 1, coins: 1000, note: "" }, { upTo: 2, coins: 500, note: "" }, { upTo: 3, coins: 250, note: "" }] };
   editingContest = JSON.parse(JSON.stringify(c)); render(); window.scrollTo(0, 0);
 }
 function contestForm(c) {
@@ -254,6 +258,50 @@ async function saveItem(ev) {
 async function deleteItem(id) {
   if (!confirm("Remove this item from the Rewards Shop?")) return;
   try { await api("/api/admin/shop/delete", { id }); toast("Item removed"); refresh(); } catch (e) { toast(e.message, true); }
+}
+
+// ---------- Question pool ----------
+async function fillPool(id, btn) {
+  btn.disabled = true; btn.textContent = "Writing a set…";
+  try { const r = await api("/api/admin/pool/refill", { id }); toast(`Pool now has ${r.sets} ready sets`); } catch (e) { toast(e.message, true); }
+  refresh();
+}
+
+// ---------- Brand profile + product catalog editors ----------
+// Forms are drawn once when opened (not on every refresh), so typing isn't lost.
+function editBrand() {
+  editingBrand = true;
+  $("brandform").innerHTML = `<div class="card"><form onsubmit="saveBrand(event)"><div class="grid">
+   <label>Brand name<input id="b-name" required value="${esc(O.brand.name)}"></label>
+   <label>Industry<input id="b-ind" required value="${esc(O.brand.industry)}"></label></div>
+   <label style="margin-top:10px">Facts the quiz may use, one per line (3–40). Keep dates current: an out-of-date launch date becomes a wrong quiz answer.
+   <textarea id="b-facts" rows="14">${esc(O.brand.facts.join("\n"))}</textarea></label>
+   <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button class="btn">Save brand profile</button><button type="button" class="btn ghost" onclick="editingBrand=false;render()">Cancel</button></div></form></div>`;
+}
+async function saveBrand(ev) {
+  ev.preventDefault();
+  try { await api("/api/admin/brand", { name: $("b-name").value, industry: $("b-ind").value, facts: $("b-facts").value }); toast("Brand profile saved; question pools cleared"); editingBrand = false; refresh(); } catch (e) { toast(e.message, true); }
+}
+function editProduct(id) {
+  const p = id ? O.products.find((x) => x.id === id) : { name: "", emoji: "🛍️", price: 499, category: "Skincare", details: "" };
+  editingProduct = p;
+  $("productform").innerHTML = `<div class="card"><form onsubmit="saveProduct(event)"><h2 style="margin-top:0">${id ? "Edit " + esc(p.name) : "Add a product"}</h2><div class="grid">
+   <label>Name<input id="pr-name" required value="${esc(p.name)}"></label>
+   <label>Emoji<input id="pr-emoji" maxlength="4" value="${esc(p.emoji)}"></label>
+   <label>Price (₹)<input id="pr-price" type="number" min="0" value="${p.price}"></label>
+   <label>Category<input id="pr-cat" value="${esc(p.category)}"></label></div>
+   <label style="margin-top:10px">Details the quiz may use (size, ingredients, how to use…)<textarea id="pr-details" rows="3">${esc(p.details)}</textarea></label>
+   <div class="row" style="justify-content:flex-start;gap:8px;margin-top:10px"><button class="btn">${id ? "Save product" : "Add product"}</button><button type="button" class="btn ghost" onclick="editingProduct=null;render()">Cancel</button></div></form></div>`;
+  $("productform").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+async function saveProduct(ev) {
+  ev.preventDefault();
+  const body = { id: editingProduct.id, name: $("pr-name").value, emoji: $("pr-emoji").value, price: $("pr-price").value, category: $("pr-cat").value, details: $("pr-details").value };
+  try { await api("/api/admin/product", body); toast(body.id ? "Product saved" : "Product added to the catalog"); editingProduct = null; refresh(); } catch (e) { toast(e.message, true); }
+}
+async function deleteProduct(id) {
+  if (!confirm("Remove this product from the catalog? Its reviews and ratings are removed too.")) return;
+  try { await api("/api/admin/product/delete", { id }); toast("Product removed"); refresh(); } catch (e) { toast(e.message, true); }
 }
 
 // ---------- AI preview ----------

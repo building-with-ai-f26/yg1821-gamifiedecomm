@@ -46,12 +46,12 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
  <div class="kicker">Credexon · Building with AI · Build 3</div>
  <h1>Credexon League</h1>
  <p class="lead">Brand-run points contests. Shoppers earn points by playing an AI-written brand quiz and by reviewing, rating, recommending and buying the brand's products, climb each contest's leaderboard, and win coins to spend on that brand's products.</p>
- <span class="badge">PRD v3</span><span class="badge">Live app</span><span class="badge">Security audit</span><span class="badge">Updated Nov 22, 2026</span>
+ <span class="badge">PRD v3</span><span class="badge">Live app</span><span class="badge">Security audit</span><span class="badge">Updated Nov 23, 2026</span>
  <nav><a href="https://credexon-league.onrender.com">Live app ↗</a><a href="#prd3">PRD v3</a><a href="#prd2">PRD v2</a><a href="#app2">Build 2 app</a><a href="#prd">PRD v1</a><a href="#prototype">Prototype</a><a href="#wireframes">Wireframes</a><a href="#log">Build log</a></nav>
 </header>
 
 <section id="prd3">
-<h2>PRD v3 <span class="badge">Build 3 · Nov 22, 2026</span></h2>
+<h2>PRD v3 <span class="badge">Build 3 · Nov 22–23, 2026</span></h2>
 <p>Build 3 takes the Build 2 app <b>live</b> at a real URL a classmate can open on their phone, with real sign-in, a real database and a full security audit. <b>Lane: Beginner.</b></p>
 <p><a class="btn" href="https://credexon-league.onrender.com">Open the live app →</a> <a class="btn" style="background:#16161d" href="https://github.com/building-with-ai-f26/yg1821-gamifiedecomm/blob/main/SECURITY.md">Read SECURITY.md →</a></p>
 
@@ -59,11 +59,13 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <table>
 <tr><th>Area</th><th>PRD v2 (Build 2)</th><th>PRD v3 (Build 3)</th></tr>
 <tr><td>Where it runs</td><td>My laptop only (<code>localhost:3000</code>)</td><td><b>Render</b> web service: <a href="https://credexon-league.onrender.com">credexon-league.onrender.com</a></td></tr>
-<tr><td>Data</td><td>A JSON file that resets if lost</td><td><b>Neon Postgres</b>: <code>production</code> branch for the live site, a separate <code>dev</code> branch for my laptop</td></tr>
+<tr><td>Data</td><td>A JSON file that resets if lost</td><td><b>Neon Postgres</b> for the live site; my laptop uses its own local file database, never the live one</td></tr>
 <tr><td>Who you are</td><td>A name typed into the page; anyone could play as anyone</td><td><b>Email magic-link sign-in</b> (via Brevo); the server knows you from a secure session cookie</td></tr>
 <tr><td>Brand admin</td><td>Open to anyone</td><td>Only signed-in emails on the admin list</td></tr>
 <tr><td>Abuse and cost</td><td>No limits</td><td>Rate limits on sign-in, quizzes and actions; a daily cap of 300 AI quizzes</td></tr>
-<tr><td>Security</td><td>Not audited</td><td><b>Full audit</b> in <code>SECURITY.md</code>, plus a 24-check test suite</td></tr>
+<tr><td>Security</td><td>Not audited</td><td><b>Full audit</b> in <code>SECURITY.md</code>, plus a 26-check test suite</td></tr>
+<tr><td>Quiz speed</td><td>Every play waited ~10 s for the AI</td><td><b>Question pools:</b> ready-made sets per contest, so most plays start instantly</td></tr>
+<tr><td>Brand admin</td><td>Brand facts and catalog fixed in code</td><td><b>Editors</b> for brand facts and the product catalog; player list with last activity; contests <b>end and pay prizes automatically</b> on their end date</td></tr>
 </table>
 
 <h3>Hosting choice: Render</h3>
@@ -76,7 +78,7 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
 <div class="card">
  <p style="margin-top:0">Render's free servers forget their files on every restart, so points, coins and players must live in a real database. The class slides list <b>Neon as best for "a server that just needs a database"</b>, which is this app: the browser never talks to the database, only my server does.</p>
  <p><b>How it's stored:</b> the whole app state is one JSON document in one Postgres row (<code>app_state</code>), saved at most every 250 ms. It's simple to explain and plenty for a class-sized app; splitting it into tables is on the backlog for growth.</p>
- <p style="margin-bottom:0"><b>Dev vs production:</b> the live site uses Neon's <code>production</code> branch, set only in Render; my laptop and my coding agent use a separate <code>dev</code> branch, so testing can't touch live data. <b>Why not Supabase with RLS?</b> RLS protects databases that browsers call directly with a public key. Mine has no public key, so the protection is in the server, and the tests prove it.</p>
+ <p style="margin-bottom:0"><b>Dev vs production:</b> the live database's connection string is set only in Render. My laptop and my coding agent run on a local file (<code>data/db.json</code>), so testing can't touch live data. I learned this the hard way: my laptop was first connected to the live database, and my test players showed up on the live leaderboard (see SECURITY.md, finding 10). <b>Why not Supabase with RLS?</b> RLS protects databases that browsers call directly with a public key. Mine has no public key, so the protection is in the server, and the tests prove it.</p>
 </div>
 
 <h3>Sign-in and security choices</h3>
@@ -88,10 +90,20 @@ footer{margin-top:60px;color:var(--mut);font-size:13px;border-top:1px solid var(
   <li><b>Rate limits</b> (429): junk sign-in requests 5 per 15 min; real sign-ins 40 per 15 min per connection (so a classroom on one Wi-Fi isn't blocked) and 3 per email; quizzes 10 per 10 min per player; 300 AI quizzes per day in total.</li>
   <li><b>Secrets stay on the server:</b> keys live in Render's dashboard; a search of the live pages found none. <b>Hardening:</b> security headers, cross-site requests blocked, no emails in public data, 0 vulnerable dependencies.</li>
  </ul>
- <p style="margin-bottom:0"><b>Results:</b> 24/24 local checks pass; on the live site 11/11 safe checks pass, and <b>30 rapid calls get 25 refusals (429)</b>. A second account can't act as, answer for, or impersonate the first. Details, findings and what's left: <a href="https://github.com/building-with-ai-f26/yg1821-gamifiedecomm/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+ <p style="margin-bottom:0"><b>Results:</b> 26/26 local checks pass; on the live site 11/11 safe checks pass, and <b>30 rapid calls get 25 refusals (429)</b>. A second account can't act as, answer for, or impersonate the first. Details, findings and what's left: <a href="https://github.com/building-with-ai-f26/yg1821-gamifiedecomm/blob/main/SECURITY.md">SECURITY.md</a>.</p>
 </div>
 <div class="gallery">
  <figure><img class="shot" src="img/security-admin-refused.jpg" alt="Admin page refusing a signed-in player who isn't an admin"><figcaption>A signed-in player who isn't an admin is refused from the brand admin</figcaption></figure>
+</div>
+
+<h3>Also new in Build 3: admin and game</h3>
+<div class="card">
+ <ul style="margin-top:0;margin-bottom:0">
+  <li><b>Faster quiz (question pools):</b> each contest keeps up to 6 ready-made question sets, written by the same rules (3 brand + 1 industry + 1 general). A player gets a set they haven't seen, with questions and answers in a new order, so the quiz opens instantly; the pool refills in the background. One set serves many players, so the cost per play drops. The brand admin sees each pool and can fill it before a launch.</li>
+  <li><b>Brand profile and catalog editors:</b> the brand admin edits the facts and products that brand questions may use. Saving clears the pools, so no quiz uses an out-of-date fact.</li>
+  <li><b>Contest auto-end:</b> a contest ends by itself on its end date and pays coin prizes to real players by rank (checked every minute and on start-up). "End & pay" still works for ending early.</li>
+  <li><b>Player list:</b> email, coins, contests, points, quiz plays and last activity for every signed-in player (admins only).</li>
+ </ul>
 </div>
 
 <h3>Biggest risk now</h3>
@@ -321,11 +333,11 @@ npm start               # player app: localhost:3000 · brand admin: localhost:3
 <h2>Build log</h2>
 <table class="log">
 <tr><td>Build 3<br>Nov 22–23</td><td>
- <p><b>What shipped:</b> the app is live at <a href="https://credexon-league.onrender.com">credexon-league.onrender.com</a> (Render) with Neon Postgres (separate production and dev branches), email magic-link sign-in through Brevo, a brand admin locked to an email allowlist, rate limits and a daily AI cap, security headers and cross-site request protection. A full audit is in <code>SECURITY.md</code>, a 24-check security test suite is in the repo, and <code>AGENTS.md</code> now has Shipping steps, an Ask-me-first list and rules from real mistakes.</p>
+ <p><b>What shipped:</b> the app is live at <a href="https://credexon-league.onrender.com">credexon-league.onrender.com</a> (Render) with Neon Postgres, email magic-link sign-in through Brevo, a brand admin locked to an email allowlist, rate limits and a daily AI cap, security headers and cross-site request protection. A full audit is in <code>SECURITY.md</code>, a 26-check security test suite is in the repo, and <code>AGENTS.md</code> now has Shipping steps, an Ask-me-first list and rules from real mistakes. Also new: question pools so most quizzes start instantly, admin editors for brand facts and products, a player list, and contests that end and pay prizes automatically.</p>
  <p><b>What I learned:</b> "who is this user?" has to be answered by the server, never by what the page sends; in Build 2 anyone could type another player's name. Most live problems were configuration, not code: a mistyped key and a wrong URL in Render's settings, which the host's log showed in one line. And a security test can hurt real users: my 30-call rate-limit test locked me out on the same Wi-Fi.</p>
- <p><b>What broke / changed:</b> sign-in failed on the live site with "Server error" (wrong Brevo key and <code>APP_URL</code> in Render; fixed, plus a clearer error message). The sign-in rate limit counted junk and real requests together, so shared Wi-Fi would block a classroom; junk now has its own strict bucket. Render couldn't see my repo in the class organization, and saving GitHub's access page might have removed classmates' repos, so I deploy from the public repo URL instead. Sign-in emails sent "from" my NYU address can land in spam. The agent attack review found two more issues (sign-in links could be logged if the email key was missing; players could copy another player's display name), both fixed with tests.</p>
+ <p><b>What broke / changed:</b> sign-in failed on the live site with "Server error" (wrong Brevo key and <code>APP_URL</code> in Render; fixed, plus a clearer error message). The sign-in rate limit counted junk and real requests together, so shared Wi-Fi would block a classroom; junk now has its own strict bucket. Render couldn't see my repo in the class organization, and saving GitHub's access page might have removed classmates' repos, so I deploy from the public repo URL instead. Sign-in emails sent "from" my NYU address can land in spam. The agent attack review found two more issues (sign-in links could be logged if the email key was missing; players could copy another player's display name), both fixed with tests. On day two I found my test players on the live leaderboard: my laptop's <code>.env</code> pointed at the live database. I removed that connection string; local runs now use a file. The walkthrough also caught quiz questions saying "according to the brief"; the prompt now forbids it.</p>
  <p><b>Costs:</b> $0 for hosting, database and email (Render, Neon and Brevo free plans). Claude API about $0.01 this week for test quizzes (Haiku 5.5, ≈ $0.002 per quiz, capped at 300 quizzes a day). Agent usage covered by my Claude Pro subscription ($20/month).</p>
- <p><b>Hours:</b> <span class="fill">add Build 3 hours</span>.</p>
+ <p><b>Hours:</b> about 8 hours (Nov 22–23), including Neon, Brevo and Render setup, the security audit and the walkthrough. Total so far: about 22 hours.</p>
 </td></tr>
 <tr><td>Build 2<br>Nov 14–15</td><td>
  <p><b>What works:</b> a local app (Node server + Claude API) with an <b>AI-written quiz</b> in each contest: 5 questions per play, up to 5 plays, no repeated questions, answers checked on the server, points added to that contest's leaderboard. Points are now per contest and coins are the wallet (prizes and Rewards Shop). Players can join up to 5 contests; the Rewards Shop Earn tab credits every joined contest that scores an action. The contest page has Prizes, Leaderboard, Scoring and How to Play tabs; general leaderboards; a brand admin sketch (analytics, launch/edit contests, quiz settings, shop items, AI cost). PostHog runs on the Product Page, prototype and app with session replay and custom quiz events. AGENTS.md documents structure and run steps; BACKLOG.md tracks what's pending.</p>

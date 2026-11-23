@@ -6,9 +6,9 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 - [x] **Admin login**: signed-in emails in `ADMIN_EMAILS` (Build 3). Still to do: roles (brand admin vs Credexon super admin).
 - [ ] **Full admin panel design**, following the Credexon platform dashboard: vendor management, industry config, game library, scoring system, fantasy contests, ad campaigns, revenue & billing, reports, user analytics, rewards ledger.
 - [ ] **Multi-brand (vendor) support**: each brand gets its own catalog, contests and shop; today there is one brand (GlowCart).
-- [ ] **Contest scheduling**: start and end dates, auto-end with automatic prize payout (today: manual "End & pay").
-- [ ] **Brand product catalog editor**: add or edit products and details used by the brand quiz (today: seeded in `server.js`).
-- [ ] **Brand profile editor**: brand admins write their own facts (founding, founders, best-sellers, next collection dates, offers) that the quiz uses; warn when a fact is out of date (e.g. a launch date has passed).
+- [x] **Contest auto-end** with automatic prize payout at the end date (Build 3). Still to do: scheduled start dates.
+- [x] **Brand product catalog editor**: add, edit or remove products and details used by the brand quiz (Build 3).
+- [x] **Brand profile editor**: brand admins edit the facts the quiz uses (Build 3). Still to do: warn when a fact is out of date (e.g. a launch date has passed).
 - [ ] **Admin quiz review**: approve, edit or ban AI questions before they go live; flag reported questions.
 - [ ] **Analytics charts**: daily active players, quiz funnel, retention, per-contest trends (PostHog dashboards plus in-app charts).
 
@@ -18,6 +18,7 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 - [ ] Move inline scripts and click handlers into files so the Content-Security-Policy can drop `'unsafe-inline'`.
 - [ ] Shared rate-limit store (e.g. Redis) before running more than one server instance.
 - [ ] Scheduled database backups beyond Neon's free restore window.
+- [ ] A Neon `dev` branch for local Postgres testing (today local runs use `data/db.json`).
 - [ ] Auto-deploy from GitHub once the class organization approves Render's access (today: Manual Deploy).
 
 ## Developer experience
@@ -25,7 +26,7 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 
 ## Players and accounts
 - [x] **Real sign-up and login**: email magic link via Brevo (Build 3).
-- [ ] **User list with logins** for admins: sessions, last seen, devices.
+- [x] **Player list** for admins with email and last activity (Build 3). Still to do: active sessions and devices, sign out a player.
 - [ ] Profile, login streak rewards (Day 1/3/5/7) and "complete profile" points from the scoring sheet.
 
 ## Games and earning
@@ -39,7 +40,7 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 ## Quiz quality and cost (Build 4 evals)
 - [ ] **Eval set**: 10 cases (5 normal, 3 messy, 2 adversarial) checking every question is factually right, has exactly one correct answer, matches the difficulty, and never repeats for a player.
 - [ ] Compare Claude Haiku 5.5 (current) against Claude Opus 5.5 on that eval; switch with `ANTHROPIC_MODEL` in `.env`.
-- [ ] Pre-generate question pools per contest so players don't wait for generation and cost per play goes down.
+- [x] Pre-generated question pools per contest so players don't wait and cost per play goes down (Build 3). Still to do: per-player sets for prize contests, so friends can't share answers.
 - [ ] Timer per question and anti-cheat (today: answers are checked server-side, no timer).
 
 ## Platform

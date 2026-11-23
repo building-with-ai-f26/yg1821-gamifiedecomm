@@ -170,6 +170,7 @@ function seed() {
       },
     ],
     version: 4,
+    pools: {},
     users: {},
     loginTokens: {}, // sha256(token) -> { email, exp }
     sessions: {}, // sha256(session) -> { user, exp }
@@ -198,6 +199,7 @@ async function load() {
   // v4: sign-in. Older name-only demo players stay on leaderboards but can't sign in.
   db.loginTokens ??= {};
   db.sessions ??= {};
+  db.pools ??= {}; // contestId -> ready-made quiz sets (see "Question pools")
   db.version = Math.max(db.version || 0, 4);
   save();
 }
@@ -261,6 +263,7 @@ function publicUser(u) {
   // Only ever sent to the player themself (via their own session).
   return { key: u.key, email: u.email, isAdmin: isAdmin(u), name: u.name, coins: u.coins, joined, stats: u.stats, coupons: u.coupons, hasVipPass: u.hasVipPass, done: u.done, history: u.history.slice(0, 50) };
 }
+const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); // for spotting repeated questions
 function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0; }
 function costOf(model, usage) {
   const p = PRICES[model];
@@ -332,6 +335,7 @@ async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = 
     `- "industry": about the brand's industry (${db.brand.industry}), e.g. what common ingredients do, product types, how online shopping and delivery work. Only widely established facts; never about another specific company's prices, offers, launches or rumours.`,
     `- "general": family-friendly general knowledge (science, geography, food, sport, culture). Only well-established facts that won't change.`,
     "Rules: exactly 4 answer options per question, exactly one correct; no 'all/none of the above'; no trick wording; keep each question under 25 words and each option under 8 words; explanation is one short sentence (under 25 words) saying why the answer is right.",
+    "Players never see the brief: never write 'the brief', 'according to the brief' or 'in the data' in a question or explanation. Write as the brand would, e.g. 'GlowCart's best-selling product is…'.",
     "Set each question's difficulty field honestly.",
   ].join("\n");
   const userMsg = [
@@ -364,7 +368,6 @@ async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = 
     if (response.stop_reason === "max_tokens") fail(502, "The AI response was cut off. Please try again.");
     const parsed = response.parsed_output;
     if (!parsed) fail(502, "The AI returned questions in an unexpected format. Please try again.");
-    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const seen = new Set(avoid.map(norm));
     const valid = parsed.questions
       .filter((q) => q.options.length === 4 && q.correct_index >= 0 && q.correct_index < 4 && new Set(q.options).size === 4)
@@ -402,6 +405,84 @@ async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = 
     save();
   }
 }
+
+// ---------- Question pools (faster quiz) ----------
+// Each contest keeps a few ready-made quiz sets, so most plays start instantly with no AI wait.
+// A set can be served to many players (cheaper per play), but never to a player who has seen any of its questions.
+// Sets are written by the same generateQuiz() rules, kept server-side with their answer key, and refilled in the background.
+const POOL_TARGET = 6; // ready sets per contest
+const POOL_MAX_USES = 25; // retire a set after this many plays so questions stay fresh
+const poolKey = (c) => `${c.quiz.topic}|${c.quiz.difficulty}|${c.quiz.questions}`;
+function poolFor(c) {
+  // Changing the contest's quiz settings starts a fresh pool.
+  if (db.pools[c.id]?.key !== poolKey(c)) db.pools[c.id] = { key: poolKey(c), sets: [] };
+  return db.pools[c.id];
+}
+// Same questions, new order of questions and options (and a matching answer key) for each player.
+function reshuffle(questions) {
+  return questions.map((q) => {
+    const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    return { ...q, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct) };
+  }).sort(() => Math.random() - 0.5);
+}
+function takeFromPool(c, seenQuestions) {
+  const seen = new Set(seenQuestions.map(norm));
+  const pool = poolFor(c);
+  const set = pool.sets.find((s) => s.questions.every((q) => !seen.has(norm(q.question))));
+  if (!set) return null;
+  set.uses++;
+  if (set.uses >= POOL_MAX_USES) pool.sets.splice(pool.sets.indexOf(set), 1);
+  return reshuffle(set.questions);
+}
+function addToPool(c, questions) {
+  const pool = poolFor(c);
+  if (pool.sets.length < POOL_TARGET) pool.sets.push({ questions, uses: 1, t: Date.now() });
+}
+const refilling = new Set();
+// Adds one set in the background (never makes a player wait). Counts toward AI_DAILY_LIMIT and is logged in db.aiUsage.
+async function refillPool(c) {
+  if (refilling.has(c.id) || c.status !== "live" || !c.quiz.enabled || !process.env.ANTHROPIC_API_KEY) return;
+  const pool = poolFor(c);
+  if (pool.sets.length >= POOL_TARGET) return;
+  refilling.add(c.id);
+  try {
+    const avoid = pool.sets.flatMap((s) => s.questions.map((q) => q.question)).slice(-60);
+    const questions = await generateQuiz({ topic: c.quiz.topic, difficulty: c.quiz.difficulty, count: c.quiz.questions, avoid, contestId: c.id, purpose: "pool" });
+    if (db.pools[c.id] === pool) { pool.sets.push({ questions, uses: 0, t: Date.now() }); save(); }
+  } catch (err) {
+    console.error(`[pool] refill for ${c.id} failed:`, err.message);
+  } finally {
+    refilling.delete(c.id);
+  }
+}
+// Brand facts or catalog changed: old questions may be wrong now, so start every pool again.
+function clearPools() { db.pools = {}; }
+
+// ---------- Contest end (manual or automatic) ----------
+// Pays coin prizes to real players by rank (seeded demo players hold ranks but get nothing).
+function endContest(c, how = "manual") {
+  const paid = [];
+  for (const p of standings(c)) {
+    if (!p.user || !p.prize?.coins) continue;
+    const u = db.users[p.user];
+    u.coins += p.prize.coins; u.stats.coinsEarned += p.prize.coins;
+    u.history.unshift({ t: Date.now(), what: `Prize: #${p.rank} in ${c.name}${p.prize.note ? " " + p.prize.note : ""}`, coins: p.prize.coins });
+    log("prize_paid", { user: u.key, contestId: c.id, rank: p.rank, coins: p.prize.coins });
+    paid.push({ name: u.name, rank: p.rank, coins: p.prize.coins });
+  }
+  c.status = "ended";
+  c.endedAt = Date.now();
+  delete db.pools[c.id];
+  log("contest_ended", { contestId: c.id, how, paid: paid.length });
+  save();
+  return paid;
+}
+// Contests whose end date has passed end themselves and pay out (checked at start-up and every minute).
+function autoEndContests() {
+  for (const c of db.contests) if (c.status === "live" && c.endsAt && c.endsAt <= Date.now()) endContest(c, "auto");
+}
+autoEndContests();
+setInterval(autoEndContests, 60_000).unref();
 
 // ---------- Player API ----------
 const routes = {
@@ -546,13 +627,20 @@ const routes = {
     if (!c.quiz.enabled) fail(400, "This contest has no quiz");
     if (j.plays >= c.quiz.maxPlays) fail(400, `No quiz plays left (max ${c.quiz.maxPlays})`);
     const avoid = (u.seen[c.id] || []).slice(-60); // every question this player saw in this contest (5 plays x 5 = 25)
-    const questions = await generateQuiz({ topic: c.quiz.topic, difficulty: c.quiz.difficulty, count: c.quiz.questions, avoid, contestId: c.id });
+    // Fast path: a ready-made set this player hasn't seen. Otherwise write one now (and keep it for other players).
+    let questions = takeFromPool(c, avoid);
+    const source = questions ? "pool" : "live";
+    if (!questions) {
+      questions = await generateQuiz({ topic: c.quiz.topic, difficulty: c.quiz.difficulty, count: c.quiz.questions, avoid, contestId: c.id });
+      addToPool(c, questions);
+    }
+    refillPool(c); // background top-up, not awaited
     // A play is used only once questions were generated successfully.
     j.plays++; u.stats.quizPlays++;
     u.seen[c.id] = [...(u.seen[c.id] || []), ...questions.map((q) => q.question)].slice(-60);
     const id = crypto.randomUUID();
     quizzes.set(id, { id, user: u.key, contestId: c.id, questions, answers: [], finished: false });
-    log("quiz_started", { user: u.key, contestId: c.id, play: j.plays });
+    log("quiz_started", { user: u.key, contestId: c.id, play: j.plays, source });
     save();
     return {
       quizId: id, play: j.plays, maxPlays: c.quiz.maxPlays, topic: TOPICS[c.quiz.topic], difficulty: c.quiz.difficulty,
@@ -634,6 +722,8 @@ Object.assign(routes, {
     const ai = db.aiUsage;
     const okAi = ai.filter((a) => a.ok);
     const quizDone = ev.filter((e) => e.type === "quiz_completed");
+    const lastSeen = {};
+    for (const e of ev) if (e.user) lastSeen[e.user] = e.t;
     return {
       model: MODEL,
       aiReady: Boolean(process.env.ANTHROPIC_API_KEY),
@@ -660,9 +750,10 @@ Object.assign(routes, {
           pointsAwarded: ce.filter((e) => e.type === "points").reduce((s, e) => s + e.points, 0),
           coinsPaid: ce.filter((e) => e.type === "prize_paid").reduce((s, e) => s + e.coins, 0),
           leader: lb[0], bestRealPlayer: firstReal || null,
+          pool: { sets: db.pools[c.id]?.key === poolKey(c) ? db.pools[c.id].sets.length : 0, target: POOL_TARGET, fromPool: ce.filter((e) => e.type === "quiz_started" && e.source === "pool").length },
         };
       }),
-      users: users.map((u) => ({ name: u.name, email: u.email || "(demo, no sign-in)", coins: u.coins, contests: Object.keys(u.joined).length, ...u.stats, joinedAt: u.createdAt }))
+      users: users.map((u) => ({ name: u.name, email: u.email || "(demo, no sign-in)", coins: u.coins, contests: Object.keys(u.joined).length, ...u.stats, joinedAt: u.createdAt, lastSeen: lastSeen[u.key] || u.createdAt }))
         .sort((a, b) => b.pointsEarned - a.pointsEarned),
       products: routes["GET /api/state"]({}, {}, {}).products,
       shop: db.shop,
@@ -711,23 +802,65 @@ Object.assign(routes, {
     return { ok: true };
   },
 
-  // End a contest and pay coin prizes to real players by rank (seeded demo players hold ranks but get nothing).
+  // End a contest now and pay coin prizes (contests also end by themselves at their end date).
   "POST /api/admin/contest/end": (_, b) => {
     const c = contestById(b.id);
     if (c.status !== "live") fail(400, "Already ended");
-    const paid = [];
-    for (const p of standings(c)) {
-      if (!p.user || !p.prize?.coins) continue;
-      const u = db.users[p.user];
-      u.coins += p.prize.coins; u.stats.coinsEarned += p.prize.coins;
-      u.history.unshift({ t: Date.now(), what: `Prize: #${p.rank} in ${c.name}${p.prize.note ? " " + p.prize.note : ""}`, coins: p.prize.coins });
-      log("prize_paid", { user: u.key, contestId: c.id, rank: p.rank, coins: p.prize.coins });
-      paid.push({ name: u.name, rank: p.rank, coins: p.prize.coins });
-    }
-    c.status = "ended";
-    log("contest_ended", { contestId: c.id });
+    return { paid: endContest(c, "manual") };
+  },
+
+  // Fill a contest's question pool now (one AI call per set), so the first players don't wait.
+  "POST /api/admin/pool/refill": async (_, b, ctx) => {
+    limit(`pool:${ctx.user.key}`, 10, 60 * 60_000);
+    const c = contestById(b.id);
+    if (c.status !== "live" || !c.quiz.enabled) fail(400, "Only live contests with a quiz have a question pool");
+    await refillPool(c);
+    return { sets: poolFor(c).sets.length };
+  },
+
+  // Brand profile editor: the only brand facts the AI quiz may use.
+  "POST /api/admin/brand": (_, b) => {
+    const facts = (Array.isArray(b.facts) ? b.facts : String(b.facts || "").split("\n"))
+      .map((f) => String(f).trim().slice(0, 240)).filter(Boolean).slice(0, 40);
+    if (facts.length < 3) fail(400, "Add at least 3 brand facts (one per line)");
+    db.brand.name = String(b.name || "").trim().slice(0, 40) || db.brand.name;
+    db.brand.industry = String(b.industry || "").trim().slice(0, 100) || db.brand.industry;
+    db.brand.facts = facts;
+    clearPools();
+    log("brand_updated", { facts: facts.length });
     save();
-    return { paid };
+    return { ok: true };
+  },
+
+  // Product catalog editor: products players review/rate/buy, and the brand quiz's product facts.
+  "POST /api/admin/product": (_, b) => {
+    const name = String(b.name || "").trim().slice(0, 60) || fail(400, "Product needs a name");
+    const fields = {
+      name, emoji: String(b.emoji || "🛍️").slice(0, 4), price: num(b.price),
+      category: String(b.category || "Products").trim().slice(0, 30), details: String(b.details || "").trim().slice(0, 400),
+    };
+    if (b.id) Object.assign(db.products.find((x) => x.id === b.id) || fail(404, "Product not found"), fields);
+    else {
+      const id = "p" + crypto.randomBytes(3).toString("hex");
+      db.products.push({ id, ...fields });
+      db.productStats[id] = { reviews: 0, ratings: [], purchases: 0 };
+    }
+    clearPools();
+    log(b.id ? "product_updated" : "product_added", { item: name });
+    save();
+    return { ok: true };
+  },
+
+  "POST /api/admin/product/delete": (_, b) => {
+    const i = db.products.findIndex((x) => x.id === b.id);
+    if (i < 0) fail(404, "Product not found");
+    if (db.products.length <= 1) fail(400, "Keep at least one product");
+    log("product_removed", { item: db.products[i].name });
+    delete db.productStats[db.products[i].id];
+    db.products.splice(i, 1);
+    clearPools();
+    save();
+    return { ok: true };
   },
 
   "POST /api/admin/shop": (_, b) => {

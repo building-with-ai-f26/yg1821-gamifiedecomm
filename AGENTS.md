@@ -10,7 +10,7 @@
 
 ## 2. Commands
 - **Install dependencies:** `npm install`
-- **Set up secrets:** `cp .env.example .env`, then fill it in (never commit `.env`). Locally, leave `BREVO_API_KEY` empty and sign-in links appear on screen; set `DATABASE_URL` to the Neon **dev** branch, never production.
+- **Set up secrets:** `cp .env.example .env`, then fill it in (never commit `.env`). Locally, leave `BREVO_API_KEY` empty and sign-in links appear on screen; leave `DATABASE_URL` empty so the app uses `data/db.json`. Never put the production connection string on this laptop (it lives only in Render).
 - **Run locally:** `npm start` (or `npm run dev` to auto-restart on changes) → player app http://localhost:3000, brand admin http://localhost:3000/admin
 - **AI cost and token report:** `npm run usage`
 - **Reset demo data (local only):** stop the server and delete `data/db.json`, or use "Reset demo data" in the admin panel (disabled on the live site)
@@ -20,7 +20,7 @@
 ## Project structure
 | Path | What it is |
 | --- | --- |
-| `server.js` | Server: serves `app/`, JSON API for players and admin, sign-in routes, admin guard, rate limits, security headers, AI quiz generation (Claude), points/coins rules, cost and token logging |
+| `server.js` | Server: serves `app/`, JSON API for players and admin, sign-in routes, admin guard, rate limits, security headers, AI quiz generation (Claude) and question pools, contest auto-end, points/coins rules, cost and token logging |
 | `lib/store.js` | Storage: one JSONB row in Neon Postgres when `DATABASE_URL` is set, `data/db.json` otherwise |
 | `lib/auth.js` | Magic-link and session helpers (hashed tokens, cookie settings, Brevo email) |
 | `lib/ratelimit.js` | In-memory fixed-window rate limiter |
@@ -29,7 +29,7 @@
 | `tests/security-test.mjs` | Security test suite (second account, admin lock, CSRF, headers, rate limit) |
 | `SECURITY.md` | Security audit: what was checked, found, fixed and left |
 | `app/index.html` | Player app: contests, contest tabs, quiz player, Rewards Shop (Earn/Redeem), leaderboards, wallet |
-| `app/admin.html` | Brand admin panel (sign-in + `ADMIN_EMAILS` required): analytics, launch/edit contests, quiz settings, shop items, AI cost |
+| `app/admin.html` | Brand admin panel (sign-in + `ADMIN_EMAILS` required): analytics, launch/edit/end contests, quiz settings and question pools, brand facts and product catalog editors, shop items, player list, AI cost |
 | `data/db.json` | Local demo database, created on first run (git-ignored) |
 | `scripts/usage-report.js` | Prints AI calls, tokens, cost per quiz and latency from the local log |
 | `docs/` | Public Product Page (`index.html`) and the Build 1 static prototype (`prototype.html`) on GitHub Pages |
@@ -42,6 +42,8 @@
 - Quiz points go only to the contest the quiz was played in. A play is used only when questions were generated successfully.
 - The quiz answer key stays on the server; never send `correct` indexes to the browser before the player answers.
 - **Quiz mix:** the default topic `mix` gives 3 brand + 1 industry + 1 general-knowledge question per 5 (`quotaFor()` in `server.js`); admins can pick brand-only, industry-only or general-only. **Brand** questions may only use facts in `db.brand.facts` and the catalog (`brandBrief()`); industry and general questions must be well-established facts. Each question carries a `category` shown to the player.
+- **Question pools:** each contest keeps up to `POOL_TARGET` (6) ready-made quiz sets in `db.pools`, served to players who haven't seen any of their questions and refilled in the background. Changing a contest's quiz settings, brand facts or catalog clears the pool; keep it that way so no quiz uses outdated facts.
+- **Contest end:** live contests end and pay prizes automatically when `endsAt` passes (`autoEndContests()`); manual "End & pay" uses the same `endContest()`.
 - Every AI call is logged in `db.aiUsage` with tokens, cost and time; keep that when changing the AI code.
 - Model is set by `ANTHROPIC_MODEL` in `.env` (default `claude-haiku-5-5`); never hardcode keys.
 - **Identity comes only from the session cookie** (`ctx.user`). Never read who the player is from the request body or query string.
@@ -66,6 +68,7 @@ The live app is on Render, deployed from the public GitHub repo URL (no auto-dep
 - Adding a dependency.
 
 ## Rules from real mistakes
+- **Check which database a local copy uses before testing.** My laptop's `.env` once pointed at the live database, and my security tests put test players on the live leaderboard. Before running tests, `curl localhost:3000/api/health` must show `"storage":"file"`.
 - **Verify pages with a cache-busting URL.** I once checked a page right after changing it and nearly reported the old cached copy as the new one.
 - **Don't narrow product scope beyond what was asked.** Asked for brand-relevant quiz questions, I made the quiz brand-only; the user wanted a mix of brand, industry and general knowledge. Ask before removing options.
 - **Run load and rate-limit tests so they can't block real users.** My live 30-call test used up the sign-in allowance for everyone on the same Wi-Fi, including the user. Junk test traffic now has its own limit; keep test traffic separate from real traffic.
