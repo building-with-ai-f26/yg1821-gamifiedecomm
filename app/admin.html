@@ -47,7 +47,7 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
 <aside>
  <div class="logo"><span>CX</span>Brand Admin</div>
  <div class="sub" id="brandsub">GlowCart</div>
- <div class="pill" style="margin-bottom:12px">Build 2 sketch · full admin in Build 3</div>
+ <div class="pill" style="margin-bottom:12px">Build 3 · admin sign-in required</div>
  <div class="nav">
   <button data-s="overview" class="on" onclick="go('overview')">📊 Overview</button>
   <button data-s="contests" onclick="go('contests')">🏅 Contests</button>
@@ -56,7 +56,7 @@ fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12p
   <button data-s="products" onclick="go('products')">🛍️ Brand & products</button>
   <button data-s="ai" onclick="go('ai')">🧠 AI quiz & cost</button>
  </div>
- <div class="side-foot"><a href="/">← Player app</a><br><br>Local demo: no admin login yet.<br><br><button class="btn danger" onclick="resetDemo()">Reset demo data</button></div>
+ <div class="side-foot"><a href="/">← Player app</a><br><br>Signed-in brand admins only.<br><br><button class="btn danger" onclick="resetDemo()" title="Works locally only; disabled on the live site">Reset demo data</button></div>
 </aside>
 <main>
 
@@ -119,7 +119,17 @@ async function api(path, body) {
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
 }
-async function refresh() { O = await api("/api/admin/overview"); render(); }
+async function refresh() {
+  try { O = await api("/api/admin/overview"); render(); }
+  catch (e) { showGate(e.message); }
+}
+// Shown when the visitor isn't signed in, or is signed in without admin rights (the API answers 401/403).
+function showGate(msg) {
+  document.querySelector("main").innerHTML = `<div class="card" style="max-width:480px;margin:40px auto;text-align:center">
+   <h1>🔒 Brand admin</h1><p class="mut">${esc(msg)}</p>
+   <p class="mut">Sign in on the player app with an admin email (listed in <code>ADMIN_EMAILS</code>), then come back to <b>/admin</b>.</p>
+   <a class="btn" href="/" style="display:inline-block;text-decoration:none">Go to sign in</a></div>`;
+}
 function go(s) { document.querySelectorAll(".screen").forEach((e) => e.classList.remove("on")); $("s-" + s).classList.add("on"); document.querySelectorAll(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.s === s)); refresh(); }
 
 const EVENT_TEXT = {
@@ -158,7 +168,7 @@ function render() {
   $("itemform").innerHTML = editingItem ? itemForm(editingItem) : "";
 
   // Players
-  $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
+  $("playertable").innerHTML = O.users.length ? `<table><tr><th>Player</th><th>Email</th><th>Coins</th><th>Contests</th><th>Points</th><th>Quiz plays</th><th>Quiz correct</th><th>Reviews</th><th>Ratings</th><th>Referrals</th><th>Purchases</th><th>Coins spent</th></tr>${O.users.map((u) => `<tr><td><b>${esc(u.name)}</b><br><small class="mut">joined ${ago(u.joinedAt)}</small></td><td><small>${esc(u.email)}</small></td><td class="price">${fmt(u.coins)}</td><td>${u.contests}</td><td>${fmt(u.pointsEarned)}</td><td>${u.quizPlays}</td><td>${u.quizCorrect}</td><td>${u.reviews}</td><td>${u.ratings}</td><td>${u.referrals}</td><td>${u.purchases}</td><td>${fmt(u.coinsSpent)}</td></tr>`).join("")}</table>` : '<p class="mut">No players yet.</p>';
 
   // Brand profile + products
   $("brandfacts").innerHTML = `<b>${esc(O.brand.name)}</b> <span class="pill">${esc(O.brand.industry)}</span><ul>${O.brand.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
@@ -260,6 +270,6 @@ async function resetDemo() {
   if (!confirm("Reset all demo data (players, contests, shop, AI log) to the starting state?")) return;
   try { await api("/api/admin/reset", {}); toast("Demo data reset"); refresh(); } catch (e) { toast(e.message, true); }
 }
-refresh().catch((e) => toast("Can't reach the local server: " + e.message, true));
+refresh();
 </script>
 </body></html>

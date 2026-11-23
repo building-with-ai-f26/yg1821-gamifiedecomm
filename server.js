@@ -11,12 +11,25 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { createStore } from "./lib/store.js";
+import * as auth from "./lib/auth.js";
+import { hit } from "./lib/ratelimit.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIR = path.join(ROOT, "app");
 const DATA_DIR = path.join(ROOT, "data");
 const DB_FILE = process.env.DB_FILE || path.join(DATA_DIR, "db.json"); // DB_FILE lets you run a separate test copy
 const PORT = Number(process.env.PORT) || 3000;
+const IS_PROD = process.env.NODE_ENV === "production";
+// Render needs 0.0.0.0; locally we only listen on this computer.
+const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
+const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
+// Brand admins: comma-separated emails allowed into /admin and /api/admin/*.
+const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+// Behind Render's proxy the real visitor IP is in X-Forwarded-For.
+const TRUST_PROXY = process.env.TRUST_PROXY === "1" || IS_PROD;
+// Safety cap on AI spend: max quiz generations per day across all players.
+const AI_DAILY_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 300;
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
 // USD per million tokens [input, output]. Used to show cost per quiz in the admin panel.
@@ -156,18 +169,22 @@ function seed() {
         seedPlayers: rivals(0.7),
       },
     ],
-    version: 3,
+    version: 4,
     users: {},
+    loginTokens: {}, // sha256(token) -> { email, exp }
+    sessions: {}, // sha256(session) -> { user, exp }
     events: [],
     aiUsage: [],
   };
 }
 
 // ---------- Storage ----------
+// Postgres (Neon) when DATABASE_URL is set, otherwise the local data/db.json file. See lib/store.js.
+const store = await createStore({ file: DB_FILE, databaseUrl: process.env.DATABASE_URL });
 let db;
-function load() {
-  try { db = JSON.parse(fs.readFileSync(DB_FILE, "utf8")); }
-  catch { db = seed(); save(); return; }
+async function load() {
+  db = await store.load();
+  if (!db) { db = seed(); save(); return; }
   // Upgrade older demo data: brand profile + brand-only quiz topics.
   if (!Array.isArray(db.brand?.facts)) db.brand = seedBrand();
   // v3: the default quiz became a brand + industry + general mix.
@@ -178,13 +195,14 @@ function load() {
     db.version = 3;
   }
   for (const c of db.contests) if (!TOPICS[c.quiz.topic]) c.quiz.topic = DEFAULT_TOPIC;
+  // v4: sign-in. Older name-only demo players stay on leaderboards but can't sign in.
+  db.loginTokens ??= {};
+  db.sessions ??= {};
+  db.version = Math.max(db.version || 0, 4);
   save();
 }
-function save() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
-load();
+function save() { store.save(db); }
+await load();
 
 const quizzes = new Map(); // quizId -> live quiz incl. answer key (kept server-side so players can't see answers)
 
@@ -192,9 +210,22 @@ const quizzes = new Map(); // quizId -> live quiz incl. answer key (kept server-
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 const fail = (status, msg) => { throw new HttpError(status, msg); };
 const contestById = (id) => db.contests.find((c) => c.id === id) || fail(404, "Contest not found");
-function userByName(name) {
-  const u = db.users[String(name || "").trim().toLowerCase()];
-  return u || fail(401, "Please register first");
+// The signed-in player comes from the session cookie (set in the HTTP handler), never from the request body.
+function requireUser(ctx) {
+  return ctx.user || fail(401, "Please sign in first");
+}
+const isAdmin = (u) => Boolean(u?.email && ADMIN_EMAILS.has(u.email));
+function newUser(email) {
+  const key = "u_" + crypto.randomBytes(8).toString("hex");
+  const name = email.split("@")[0].replace(/[^a-zA-Z0-9 ._-]/g, "").slice(0, 24) || "Player";
+  db.users[key] = {
+    key, email, name, coins: WELCOME_COINS, joined: {}, coupons: [], hasVipPass: false, done: {}, seen: {},
+    stats: { quizPlays: 0, quizCorrect: 0, reviews: 0, ratings: 0, referrals: 0, purchases: 0, pointsEarned: 0, coinsEarned: WELCOME_COINS, coinsSpent: 0, contestsJoined: 0 },
+    history: [{ t: Date.now(), what: "Welcome bonus", coins: WELCOME_COINS }],
+    createdAt: Date.now(),
+  };
+  log("registered", { user: key });
+  return db.users[key];
 }
 function log(type, data = {}) {
   db.events.push({ t: Date.now(), type, ...data });
@@ -227,7 +258,8 @@ function publicUser(u) {
     const rank = c ? standings(c).findIndex((p) => p.user === u.key) + 1 : null;
     return [id, { ...j, rank }];
   }));
-  return { name: u.name, coins: u.coins, joined, stats: u.stats, coupons: u.coupons, hasVipPass: u.hasVipPass, done: u.done, history: u.history.slice(0, 50) };
+  // Only ever sent to the player themself (via their own session).
+  return { key: u.key, email: u.email, isAdmin: isAdmin(u), name: u.name, coins: u.coins, joined, stats: u.stats, coupons: u.coupons, hasVipPass: u.hasVipPass, done: u.done, history: u.history.slice(0, 50) };
 }
 function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0; }
 function costOf(model, usage) {
@@ -287,6 +319,8 @@ function claude() {
 
 async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = null, purpose = "play" }) {
   const anthropic = claude();
+  const dayStart = new Date().setHours(0, 0, 0, 0);
+  if (db.aiUsage.filter((a) => a.t >= dayStart).length >= AI_DAILY_LIMIT) fail(429, "The quiz is very popular today; please try again tomorrow.");
   const quota = quotaFor(topic, count);
   // Spares: +1 for each of the two largest categories in the quota.
   const ask = { ...quota };
@@ -371,8 +405,10 @@ async function generateQuiz({ topic, difficulty, count, avoid = [], contestId = 
 
 // ---------- Player API ----------
 const routes = {
-  "GET /api/state": (q) => {
-    const me = q.user ? db.users[q.user.trim().toLowerCase()] : null;
+  "GET /api/health": () => ({ ok: true, storage: store.kind }),
+
+  "GET /api/state": (q, b, ctx) => {
+    const me = ctx.user || null;
     return {
       brand: db.brand,
       actions: ACTIONS,
@@ -392,25 +428,56 @@ const routes = {
     };
   },
 
-  "POST /api/register": (_, b) => {
-    const name = String(b.name || "").trim().slice(0, 24);
-    if (!name) fail(400, "Enter a name");
-    const key = name.toLowerCase();
-    if (!db.users[key]) {
-      db.users[key] = {
-        key, name, coins: WELCOME_COINS, joined: {}, coupons: [], hasVipPass: false, done: {}, seen: {},
-        stats: { quizPlays: 0, quizCorrect: 0, reviews: 0, ratings: 0, referrals: 0, purchases: 0, pointsEarned: 0, coinsEarned: WELCOME_COINS, coinsSpent: 0, contestsJoined: 0 },
-        history: [{ t: Date.now(), what: "Welcome bonus", coins: WELCOME_COINS }],
-        createdAt: Date.now(),
-      };
-      log("registered", { user: key });
-      save();
-    }
-    return publicUser(db.users[key]);
+  // Step 1 of sign-in: email a one-time link. Same reply whether or not the email has an account.
+  "POST /api/auth/request": async (_, b, ctx) => {
+    limit(`login:ip:${ctx.ip}`, 5, 15 * 60_000); // counted before validation, so junk requests also hit the limit
+    const email = auth.normalizeEmail(b.email) || fail(400, "Enter a valid email address");
+    limit(`login:email:${email}`, 3, 15 * 60_000);
+    // Housekeeping: forget expired links and sessions.
+    for (const [k, v] of Object.entries(db.loginTokens)) if (v.exp < Date.now()) delete db.loginTokens[k];
+    for (const [k, v] of Object.entries(db.sessions)) if (v.exp < Date.now()) delete db.sessions[k];
+    const token = auth.newToken();
+    db.loginTokens[auth.hashToken(token)] = { email, exp: Date.now() + auth.LOGIN_TOKEN_TTL_MS };
+    save();
+    const link = `${APP_URL}/auth/verify?token=${token}`;
+    const { sent } = await auth.sendMagicLink({ to: email, link, brand: db.brand.name });
+    // Local development only: hand the link back so you can test without an email service.
+    return { ok: true, sent, ...(!sent && !IS_PROD ? { devLink: link } : {}) };
   },
 
-  "POST /api/join": (_, b) => {
-    const u = userByName(b.user), c = contestById(b.contestId);
+  // Step 2: the link's page posts the token here; we swap it for a session cookie.
+  "POST /api/auth/verify": (_, b, ctx) => {
+    limit(`verify:ip:${ctx.ip}`, 20, 15 * 60_000);
+    const h = auth.hashToken(b.token);
+    const t = db.loginTokens[h];
+    delete db.loginTokens[h]; // one-time use
+    if (!t || t.exp < Date.now()) { save(); fail(400, "This sign-in link has expired or was already used. Request a new one."); }
+    const u = Object.values(db.users).find((x) => x.email === t.email) || newUser(t.email);
+    const session = auth.newToken();
+    db.sessions[auth.hashToken(session)] = { user: u.key, exp: Date.now() + auth.SESSION_TTL_MS };
+    log("signed_in", { user: u.key });
+    save();
+    ctx.setCookie(auth.sessionCookie(session, { secure: IS_PROD, maxAgeMs: auth.SESSION_TTL_MS }));
+    return { ok: true, next: isAdmin(u) && b.next === "/admin" ? "/admin" : "/" };
+  },
+
+  "POST /api/auth/logout": (_, b, ctx) => {
+    if (ctx.sessionHash) { delete db.sessions[ctx.sessionHash]; save(); }
+    ctx.setCookie(auth.sessionCookie("", { secure: IS_PROD, maxAgeMs: 0 }));
+    return { ok: true };
+  },
+
+  "POST /api/profile": (_, b, ctx) => {
+    const u = requireUser(ctx);
+    const name = String(b.name || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim().slice(0, 24);
+    if (name.length < 2) fail(400, "Pick a name of 2–24 letters or numbers");
+    u.name = name;
+    save();
+    return publicUser(u);
+  },
+
+  "POST /api/join": (_, b, ctx) => {
+    const u = requireUser(ctx), c = contestById(b.contestId);
     if (c.status !== "live") fail(400, "This contest has ended");
     if (u.joined[c.id]) return publicUser(u);
     if (activeJoins(u).length >= MAX_ACTIVE_CONTESTS) fail(400, `You can be in at most ${MAX_ACTIVE_CONTESTS} live contests at a time`);
@@ -428,8 +495,9 @@ const routes = {
   },
 
   // Rewards Shop "Earn" actions: points go to every joined live contest that scores this action.
-  "POST /api/action": (_, b) => {
-    const u = userByName(b.user);
+  "POST /api/action": (_, b, ctx) => {
+    const u = requireUser(ctx);
+    limit(`action:${u.key}`, 30, 60_000);
     const type = b.type;
     if (!["review", "photo", "rating", "referral", "purchase"].includes(type)) fail(400, "Unknown action");
     const p = db.products.find((x) => x.id === b.productId) || fail(404, "Product not found");
@@ -460,8 +528,10 @@ const routes = {
     return { me: publicUser(u), credited };
   },
 
-  "POST /api/quiz/start": async (_, b) => {
-    const u = userByName(b.user), c = contestById(b.contestId);
+  "POST /api/quiz/start": async (_, b, ctx) => {
+    const u = requireUser(ctx), c = contestById(b.contestId);
+    limit(`quiz:user:${u.key}`, 10, 10 * 60_000);
+    limit(`quiz:ip:${ctx.ip}`, 20, 10 * 60_000);
     const j = u.joined[c.id] || fail(400, "Join this contest first");
     if (c.status !== "live") fail(400, "This contest has ended");
     if (!c.quiz.enabled) fail(400, "This contest has no quiz");
@@ -482,8 +552,10 @@ const routes = {
     };
   },
 
-  "POST /api/quiz/answer": (_, b) => {
+  "POST /api/quiz/answer": (_, b, ctx) => {
+    const u = requireUser(ctx);
     const qz = quizzes.get(b.quizId) || fail(404, "Quiz not found or expired");
+    if (qz.user !== u.key) fail(403, "This isn't your quiz");
     const i = Number(b.index), choice = Number(b.choice);
     const q = qz.questions[i] || fail(400, "Bad question");
     if (qz.answers[i] !== undefined) fail(400, "Already answered");
@@ -493,8 +565,10 @@ const routes = {
     return { correct, correctIndex: q.correct, explanation: q.explanation };
   },
 
-  "POST /api/quiz/finish": (_, b) => {
+  "POST /api/quiz/finish": (_, b, ctx) => {
+    const me = requireUser(ctx);
     const qz = quizzes.get(b.quizId) || fail(404, "Quiz not found or expired");
+    if (qz.user !== me.key) fail(403, "This isn't your quiz");
     if (qz.finished) fail(400, "Quiz already finished");
     qz.finished = true;
     const u = db.users[qz.user], c = contestById(qz.contestId), j = u.joined[c.id];
@@ -511,8 +585,8 @@ const routes = {
     return { correct, total, perfect, points, playsLeft: c.quiz.maxPlays - j.plays, me: publicUser(u) };
   },
 
-  "POST /api/redeem": (_, b) => {
-    const u = userByName(b.user);
+  "POST /api/redeem": (_, b, ctx) => {
+    const u = requireUser(ctx);
     const item = db.shop.find((x) => x.id === b.itemId) || fail(404, "Item not found");
     if (item.stock <= 0) fail(400, "Out of stock");
     if (u.coins < item.cost) fail(400, `Need ${item.cost - u.coins} more coins`);
@@ -540,7 +614,7 @@ function generalLeaderboard() {
   };
 }
 
-// ---------- Admin API (local demo: no login yet) ----------
+// ---------- Admin API (only signed-in emails listed in ADMIN_EMAILS; enforced in the HTTP handler) ----------
 const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : d);
 
 Object.assign(routes, {
@@ -579,9 +653,9 @@ Object.assign(routes, {
           leader: lb[0], bestRealPlayer: firstReal || null,
         };
       }),
-      users: users.map((u) => ({ name: u.name, coins: u.coins, contests: Object.keys(u.joined).length, ...u.stats, joinedAt: u.createdAt }))
+      users: users.map((u) => ({ name: u.name, email: u.email || "(demo, no sign-in)", coins: u.coins, contests: Object.keys(u.joined).length, ...u.stats, joinedAt: u.createdAt }))
         .sort((a, b) => b.pointsEarned - a.pointsEarned),
-      products: routes["GET /api/state"]({}).products,
+      products: routes["GET /api/state"]({}, {}, {}).products,
       shop: db.shop,
       ai: {
         calls: ai.length, ok: okAi.length, failed: ai.length - okAi.length,
@@ -667,18 +741,62 @@ Object.assign(routes, {
   },
 
   // Let the brand preview what the AI writes for a topic/difficulty before launching.
-  "POST /api/admin/quiz-preview": async (_, b) => {
+  "POST /api/admin/quiz-preview": async (_, b, ctx) => {
+    limit(`preview:${ctx.user.key}`, 10, 60 * 60_000);
     const topic = TOPICS[b.topic] ? b.topic : DEFAULT_TOPIC;
     const difficulty = DIFFICULTIES.includes(b.difficulty) ? b.difficulty : "mixed";
     const questions = await generateQuiz({ topic, difficulty, count: Math.min(10, Math.max(3, num(b.questions, 5))), purpose: "admin_preview" });
     return { questions };
   },
 
-  "POST /api/admin/reset": () => { db = seed(); quizzes.clear(); save(); return { ok: true }; },
+  // Demo reset wipes everything, so it only works locally.
+  "POST /api/admin/reset": () => {
+    if (IS_PROD) fail(403, "Reset is disabled on the live site");
+    db = seed(); quizzes.clear(); save(); return { ok: true };
+  },
 });
 
 // ---------- HTTP server ----------
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+
+// Throws 429 when a key goes over its limit (see lib/ratelimit.js).
+function limit(key, max, windowMs) {
+  const r = hit(key, max, windowMs);
+  if (!r.ok) { const e = new HttpError(429, `Too many requests. Try again in ${r.retryAfterSec} s.`); e.retryAfter = r.retryAfterSec; throw e; }
+}
+
+// Browser security headers on every response.
+function securityHeaders(res) {
+  res.setHeader("Content-Security-Policy", [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://us-assets.i.posthog.com", // inline handlers + PostHog
+    "connect-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com",
+    "img-src 'self' data: https:",
+    "style-src 'self' 'unsafe-inline'",
+    "worker-src 'self' blob:", // PostHog session replay
+    "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'",
+  ].join("; "));
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (IS_PROD) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+}
+
+function clientIp(req) {
+  if (TRUST_PROXY && req.headers["x-forwarded-for"]) return String(req.headers["x-forwarded-for"]).split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
+// Who is calling: looks up the session cookie (hashed) and drops expired sessions.
+function sessionUser(req) {
+  const token = auth.parseCookies(req.headers.cookie)[auth.SESSION_COOKIE];
+  if (!token) return {};
+  const h = auth.hashToken(token);
+  const s = db.sessions[h];
+  if (!s || s.exp < Date.now() || !db.users[s.user]) { if (s) { delete db.sessions[h]; save(); } return {}; }
+  return { user: db.users[s.user], sessionHash: h };
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -690,28 +808,47 @@ function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
+  securityHeaders(res);
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (url.pathname.startsWith("/api/")) {
     const handler = routes[`${req.method} ${url.pathname}`];
     res.setHeader("Content-Type", "application/json");
+    res.setHeader("Cache-Control", "no-store");
     if (!handler) { res.writeHead(404); return res.end(JSON.stringify({ error: "Not found" })); }
+    const cookies = [];
+    const ctx = { ip: clientIp(req), ...sessionUser(req), setCookie: (c) => cookies.push(c) };
     try {
+      limit(`api:ip:${ctx.ip}`, 300, 60_000); // general cap per visitor
+      if (req.method === "POST") {
+        // CSRF defence: only accept JSON posted from our own pages.
+        if (!String(req.headers["content-type"] || "").startsWith("application/json")) fail(415, "Send JSON");
+        const origin = req.headers.origin;
+        if (origin && new URL(origin).host !== req.headers.host) fail(403, "Cross-site request blocked");
+      }
+      if (url.pathname.startsWith("/api/admin/")) {
+        if (!ctx.user) fail(401, "Sign in to use the admin panel");
+        if (!isAdmin(ctx.user)) fail(403, "This account isn't a brand admin");
+      }
       const body = req.method === "POST" ? await readBody(req) : {};
-      const out = await handler(Object.fromEntries(url.searchParams), body);
+      const out = await handler(Object.fromEntries(url.searchParams), body, ctx);
+      if (cookies.length) res.setHeader("Set-Cookie", cookies);
       res.writeHead(200); res.end(JSON.stringify(out));
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 500;
       if (status === 500) console.error(err);
+      if (err.retryAfter) res.setHeader("Retry-After", String(err.retryAfter));
+      if (cookies.length) res.setHeader("Set-Cookie", cookies);
       res.writeHead(status); res.end(JSON.stringify({ error: status === 500 ? "Server error" : err.message }));
     }
     return;
   }
-  let file = url.pathname === "/" ? "/index.html" : url.pathname === "/admin" ? "/admin.html" : url.pathname;
+  const pages = { "/": "/index.html", "/admin": "/admin.html", "/auth/verify": "/verify.html" };
+  const file = pages[url.pathname] || url.pathname;
   const full = path.join(APP_DIR, path.normalize(decodeURIComponent(file)));
   if (!full.startsWith(APP_DIR + path.sep)) { res.writeHead(403); return res.end(); }
   fs.readFile(full, (err, data) => {
     if (err) { res.writeHead(404); return res.end("Not found"); }
-    res.writeHead(200, { "Content-Type": TYPES[path.extname(full)] || "application/octet-stream" });
+    res.writeHead(200, { "Content-Type": TYPES[path.extname(full)] || "application/octet-stream", "Cache-Control": "no-cache" });
     res.end(data);
   });
 });
@@ -724,7 +861,11 @@ server.on("error", (err) => {
   throw err;
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Credexon League running:\n  Player app:  http://localhost:${PORT}\n  Brand admin: http://localhost:${PORT}/admin`);
+server.listen(PORT, HOST, () => {
+  console.log(`Credexon League running (${IS_PROD ? "production" : "development"}, storage: ${store.kind}):\n  Player app:  ${APP_URL}\n  Brand admin: ${APP_URL}/admin`);
+  console.log(`  Admins: ${ADMIN_EMAILS.size ? [...ADMIN_EMAILS].join(", ") : "none set (add ADMIN_EMAILS to .env)"} · email: ${process.env.BREVO_API_KEY ? "Brevo" : "links printed here (no BREVO_API_KEY)"}`);
   console.log(`  AI quiz model: ${MODEL} (${process.env.ANTHROPIC_API_KEY ? "API key loaded" : "NO API KEY — add ANTHROPIC_API_KEY to .env"})`);
 });
+
+// Save pending changes before Render stops or restarts the app.
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, async () => { await store.close(); process.exit(0); });

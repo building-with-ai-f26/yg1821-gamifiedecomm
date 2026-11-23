@@ -60,7 +60,7 @@ tr.you td{color:var(--gold);font-weight:700}
 <div class="app">
 <aside>
  <div class="logo"><span>CX</span><span id="brandname" style="background:none;padding:0">GlowCart</span> League</div>
- <div class="me"><b id="uname">Guest</b><small id="usub">Not registered</small><br><button class="btn ghost sm" style="margin-top:8px" onclick="switchPlayer()" id="switchbtn">Register</button></div>
+ <div class="me"><b id="uname">Guest</b><small id="usub">Not signed in</small><br><button class="btn ghost sm" style="margin-top:8px" onclick="D && D.me ? signOut() : signIn()" id="switchbtn">Sign in</button> <button class="btn ghost sm" style="margin-top:8px;display:none" onclick="editName()" id="namebtn">Edit name</button></div>
  <div class="nav">
   <div class="sec">Contests</div>
   <button data-s="contests" class="on" onclick="go('contests')">🏅 Contests</button>
@@ -72,14 +72,14 @@ tr.you td{color:var(--gold);font-weight:700}
   <button data-s="coupons" onclick="go('coupons')">🎟️ My Coupons</button>
  </div>
  <div class="wal"><small>My Wallet</small><br><b id="bal">0</b> <small>coins</small></div>
- <a class="adminlink" href="/admin">🛠️ Brand admin panel →</a>
+ <a class="adminlink" href="/admin" id="adminlink" style="display:none">🛠️ Brand admin panel →</a>
 </aside>
 
 <main>
 <section class="screen on" id="s-contests">
  <h1>🏅 Contests</h1>
  <p class="mut">Join up to <b id="maxc">5</b> live contests at a time. Each contest has its own <b>points</b> leaderboard; top players win <b>coins</b> when it ends.</p>
- <div id="needreg" class="card" style="display:none"><div class="row"><span>Register to join contests. You'll get <b class="price">500 welcome coins</b>.</span><button class="btn" onclick="register()">Register</button></div></div>
+ <div id="needreg" class="card" style="display:none"><div class="row"><span>Sign in with your email to join contests. New players get <b class="price">500 welcome coins</b>.</span><button class="btn" onclick="signIn()">Sign in</button></div></div>
  <div class="grid" id="contestlist"></div>
 </section>
 
@@ -127,15 +127,14 @@ tr.you td{color:var(--gold);font-weight:700}
 <script>
 // ---------- State & helpers ----------
 let D = null;                 // latest /api/state payload
-let ME = null;                // current user's name
+let ME = null;                // signed-in player's id (the server knows who you are from your sign-in cookie)
+let identified = null;        // PostHog: identify by player id, never by email
 let activeId = null, detailTab = "prizes", shopTab = "earn", shopCat = "All";
 const PS = {};                // per-product UI state (open panel, stars picked)
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString();
 const track = (event, props) => { try { window.posthog && posthog.capture(event, props); } catch (e) {} };
-function store(k, v) { try { v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch (e) {} }
-function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
 function toast(msg, bad) { const t = $("toast"); t.textContent = msg; t.style.background = bad ? "var(--red)" : "var(--ok)"; t.style.color = bad ? "#2a0505" : "#052a1b"; t.style.display = "block"; clearTimeout(t._x); t._x = setTimeout(() => (t.style.display = "none"), 2600); }
 
@@ -145,7 +144,12 @@ async function api(path, body) {
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
 }
-async function refresh() { D = await api("/api/state" + (ME ? "?user=" + encodeURIComponent(ME) : "")); if (ME && !D.me) { ME = null; store("crx_user", ""); } render(); }
+async function refresh() {
+  D = await api("/api/state");
+  ME = D.me ? D.me.key : null;
+  if (ME && identified !== ME) { try { posthog.identify(ME, { name: D.me.name }); } catch (e) {} identified = ME; }
+  render();
+}
 async function act(fn) { try { return await fn(); } catch (e) { toast(e.message, true); } }
 
 function go(s) {
@@ -160,21 +164,43 @@ function timeLeft(c) { if (c.status !== "live") return "Ended"; const ms = c.end
 function joinLabel(c) { return c.entry.type === "free" ? "Join free" : c.entry.type === "coins" ? `Enter for ${c.entry.fee} coins` : (D.me && D.me.hasVipPass ? "Enter with VIP pass" : "🔒 Needs VIP pass"); }
 
 // ---------- Actions ----------
-async function register() {
-  const n = prompt("Your name to register:", "Yash"); if (n === null || !n.trim()) return;
-  await act(async () => { const me = await api("/api/register", { name: n.trim() }); ME = me.name; store("crx_user", ME); try { posthog.identify(ME.toLowerCase(), { name: ME }); } catch (e) {} track("registered"); toast(`Welcome, ${ME}! +500 coins`); await refresh(); });
+// ---------- Sign-in (email magic link) ----------
+function signIn() {
+  quizModal(`<h2 style="margin-top:0">Sign in</h2><p class="mut">We'll email you a one-time sign-in link. No password needed.</p>
+   <form onsubmit="sendLink(event)"><input id="si-email" type="email" required maxlength="254" placeholder="you@example.com" autocomplete="email" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#11132a;color:var(--txt);font:inherit">
+   <button class="btn" style="width:100%;margin-top:10px" id="si-btn">Email me a sign-in link</button></form>
+   <div id="si-msg" class="note" style="font-size:14px"></div>
+   <button class="btn ghost sm" onclick="closeQuiz()">Close</button>`);
+  setTimeout(() => $("si-email") && $("si-email").focus(), 50);
 }
-// Demo login: switching players lets you test the leaderboard with player 1 vs player 2 in one browser.
-async function switchPlayer() { const prev = ME; ME = null; await register(); if (!ME) { ME = prev; } else { try { posthog.reset(); posthog.identify(ME.toLowerCase(), { name: ME }); } catch (e) {} } await refresh(); }
+async function sendLink(ev) {
+  ev.preventDefault();
+  const email = $("si-email").value.trim();
+  $("si-btn").disabled = true;
+  try {
+    const r = await api("/api/auth/request", { email });
+    track("signin_link_requested");
+    $("si-msg").innerHTML = r.devLink
+      ? `Local development (no email service): <a href="${esc(r.devLink)}" style="color:var(--gold)">open your sign-in link</a>`
+      : `✉️ Check <b>${esc(email)}</b> for your sign-in link. It works once and expires in 15 minutes.`;
+  } catch (e) { $("si-msg").innerHTML = `<span class="down">${esc(e.message)}</span>`; $("si-btn").disabled = false; }
+}
+async function signOut() {
+  await act(async () => { await api("/api/auth/logout", {}); try { posthog.reset(); } catch (e) {} identified = null; toast("Signed out"); await refresh(); });
+}
+async function editName() {
+  const n = prompt("Your name on leaderboards:", D.me.name); if (!n) return;
+  await act(async () => { await api("/api/profile", { name: n }); toast("Name updated"); await refresh(); });
+}
 async function join(id) {
-  if (!ME) { await register(); if (!ME) return; }
-  await act(async () => { await api("/api/join", { user: ME, contestId: id }); const c = C(id); track("contest_joined", { contest_id: id, entry_type: c.entry.type }); toast(`Joined ${c.name}`); await refresh(); });
+  if (!ME) return signIn();
+  await act(async () => { await api("/api/join", { contestId: id }); const c = C(id); track("contest_joined", { contest_id: id, entry_type: c.entry.type }); toast(`Joined ${c.name}`); await refresh(); });
 }
 function openC(id, tab) { activeId = id; detailTab = tab || "prizes"; go("detail"); render(); track("contest_viewed", { contest_id: id }); }
 
 async function earnAction(pid, type) {
-  if (!ME) return toast("Register first", true);
-  const body = { user: ME, type, productId: pid };
+  if (!ME) return signIn();
+  const body = { type, productId: pid };
   if (type === "review") body.text = ($("t-" + pid) || {}).value || "";
   if (type === "rating") body.stars = PS[pid] && PS[pid].stars;
   if (type === "referral") { try { navigator.clipboard.writeText(`https://glowcart.example/p/${pid}?ref=${encodeURIComponent(ME)}`); } catch (e) {} }
@@ -187,8 +213,8 @@ async function earnAction(pid, type) {
   });
 }
 async function redeem(itemId) {
-  if (!ME) return toast("Register first", true);
-  await act(async () => { const r = await api("/api/redeem", { user: ME, itemId }); track("reward_redeemed", { item_id: itemId }); toast(`Redeemed! Code ${r.code}`); await refresh(); });
+  if (!ME) return signIn();
+  await act(async () => { const r = await api("/api/redeem", { itemId }); track("reward_redeemed", { item_id: itemId }); toast(`Redeemed! Code ${r.code}`); await refresh(); });
 }
 
 // ---------- Quiz ----------
@@ -201,7 +227,7 @@ async function startQuiz(id) {
   const t0 = performance.now();
   track("quiz_requested", { contest_id: id, topic: c.quiz.topic, difficulty: c.quiz.difficulty });
   try {
-    const q = await api("/api/quiz/start", { user: ME, contestId: id });
+    const q = await api("/api/quiz/start", { contestId: id });
     QZ = { ...q, contestId: id, i: 0, correct: 0, answered: false };
     track("quiz_started", { contest_id: id, topic: c.quiz.topic, difficulty: c.quiz.difficulty, play: q.play, generation_ms: Math.round(performance.now() - t0) });
     showQuestion();
@@ -247,8 +273,8 @@ async function finishQuiz() {
 }
 
 // ---------- Rendering ----------
-function boardTable(rows, hiName) {
-  return `<table><tr><th>Rank</th><th>Player</th><th>Points</th><th>Prize</th></tr>${rows.map((r) => `<tr class="${r.user && hiName && r.name.toLowerCase() === hiName.toLowerCase() ? "you" : ""}"><td>${["🥇", "🥈", "🥉"][r.rank - 1] || r.rank}</td><td>${esc(r.name)}${r.user && hiName && r.name.toLowerCase() === hiName.toLowerCase() ? " (You)" : ""}</td><td>${fmt(r.points)}</td><td class="mut">${r.prize ? `${fmt(r.prize.coins)} coins ${esc(r.prize.note)}` : "—"}</td></tr>`).join("")}</table>`;
+function boardTable(rows, myKey) {
+  return `<table><tr><th>Rank</th><th>Player</th><th>Points</th><th>Prize</th></tr>${rows.map((r) => `<tr class="${myKey && r.user === myKey ? "you" : ""}"><td>${["🥇", "🥈", "🥉"][r.rank - 1] || r.rank}</td><td>${esc(r.name)}${myKey && r.user === myKey ? " (You)" : ""}</td><td>${fmt(r.points)}</td><td class="mut">${r.prize ? `${fmt(r.prize.coins)} coins ${esc(r.prize.note)}` : "—"}</td></tr>`).join("")}</table>`;
 }
 function scoringRows(c) {
   const rows = Object.entries(D.actions).filter(([k]) => (c.scoring[k] || 0) > 0);
@@ -263,9 +289,11 @@ function render() {
   $("brandname").textContent = D.brand.name; $("maxc").textContent = D.maxActiveContests;
   const me = D.me;
   $("uname").textContent = me ? me.name : "Guest";
-  $("usub").textContent = me ? `${liveJoined()}/${D.maxActiveContests} live contests joined` : "Not registered";
+  $("usub").textContent = me ? `${liveJoined()}/${D.maxActiveContests} live contests joined` : "Not signed in";
   $("bal").textContent = fmt(me ? me.coins : 0);
-  $("switchbtn").textContent = me ? "Switch player" : "Register";
+  $("switchbtn").textContent = me ? "Sign out" : "Sign in";
+  $("namebtn").style.display = me ? "inline-block" : "none";
+  $("adminlink").style.display = me && me.isAdmin ? "block" : "none";
   $("needreg").style.display = me ? "none" : "block";
 
   // Contest lobby
@@ -296,7 +324,7 @@ function render() {
     $("d-tabs").innerHTML = tabs.map(([k, l]) => `<button class="${detailTab === k ? "on" : ""}" onclick="detailTab='${k}';render()">${l}</button>`).join("");
     let body = "";
     if (detailTab === "prizes") body = `<div class="card">${c.prizes.map((p, i) => { const from = i ? c.prizes[i - 1].upTo + 1 : 1; return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>${from === p.upTo ? ["🥇 1st", "🥈 2nd", "🥉 3rd"][p.upTo - 1] || `#${p.upTo}` : `#${from}–${p.upTo}`}</span><span class="price">${fmt(p.coins)} coins ${esc(p.note || "")}</span></div>`; }).join("")}<p class="note">Prizes are paid in coins when the contest ends. Spend coins in the Rewards Shop.</p></div>`;
-    if (detailTab === "leaderboard") body = `<div class="card">${boardTable(c.leaderboard, D.me && D.me.name)}</div>`;
+    if (detailTab === "leaderboard") body = `<div class="card">${boardTable(c.leaderboard, ME)}</div>`;
     if (detailTab === "scoring") body = `<div class="card">${scoringRows(c)}</div>`;
     if (detailTab === "howto") body = `<div class="card"><ol class="howto">
       <li><b>Join</b> the contest (you can be in up to ${D.maxActiveContests} live contests at once).</li>
@@ -325,7 +353,7 @@ function render() {
     const joinedLive = me ? Object.keys(me.joined).filter((id) => C(id) && C(id).status === "live") : [];
     const ptsFor = (type) => { const hits = joinedLive.map((id) => C(id).scoring[type] || 0).filter((x) => x > 0); return hits.length ? `+${hits.reduce((s, x) => s + x, 0)} pts · ${hits.length} contest${hits.length > 1 ? "s" : ""}` : "no joined contest scores this"; };
     const done = (t, pid) => me && me.done[`${t}:${pid}`];
-    $("shopbody").innerHTML = (!me ? `<div class="card">Register and join a contest to earn points. <button class="btn sm" onclick="register()">Register</button></div>` : !joinedLive.length ? `<div class="card">Join a contest first; points only count in contests you've joined. <button class="btn sm" onclick="go('contests')">Browse contests</button></div>` : "")
+    $("shopbody").innerHTML = (!me ? `<div class="card">Sign in and join a contest to earn points. <button class="btn sm" onclick="signIn()">Sign in</button></div>` : !joinedLive.length ? `<div class="card">Join a contest first; points only count in contests you've joined. <button class="btn sm" onclick="go('contests')">Browse contests</button></div>` : "")
       + `<div class="grid">${D.products.map((p) => { PS[p.id] ??= { open: false, stars: 0 }; const s = PS[p.id];
         return `<div class="card prod"><div class="img">${p.emoji}</div><b>${esc(p.name)}</b><p class="mut" style="margin:4px 0">₹${fmt(p.price)} · ${p.avgRating}★ (${p.ratingCount}) · ${p.reviews} reviews</p>
          <button class="btn acc" style="width:100%;margin-top:8px" onclick="PS['${p.id}'].open=!PS['${p.id}'].open;render()">${s.open ? "▲ Hide" : "▼ Earn points on this product"}</button>
@@ -350,7 +378,6 @@ function render() {
   $("coupons").innerHTML = me && me.coupons.length ? `<table><tr><th>Code</th><th>Reward</th><th>Status</th></tr>${me.coupons.map((c) => `<tr><td><b>${esc(c.code)}</b></td><td>${esc(c.name)}</td><td class="up">Active</td></tr>`).join("")}</table>` : '<span class="mut">Redeem something in the Rewards Shop to get a coupon.</span>';
 }
 
-ME = load("crx_user") || null;
-refresh().catch((e) => toast("Can't reach the local server: " + e.message, true));
+refresh().catch((e) => toast("Can't reach the server: " + e.message, true));
 </script>
 </body></html>

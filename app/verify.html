@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Credexon League</title>
+<style>
+:root{--bg:#0d0f1e;--card:#1b1e38;--line:#2b2f57;--txt:#f1f2fb;--mut:#9599c2;--gold:#ffc24b;--red:#f87171}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center}
+.btn{border:0;border-radius:10px;padding:13px 18px;font-weight:700;background:var(--gold);color:#241700;cursor:pointer;font-size:15px;width:100%;margin-top:14px}
+.btn:disabled{opacity:.6}.mut{color:var(--mut)}.err{color:var(--red)}a{color:var(--gold)}
+</style>
+</head><body>
+<div class="card">
+ <h2 style="margin-top:0">Sign in to Credexon League</h2>
+ <p class="mut" id="msg">Tap the button to finish signing in on this device.</p>
+ <button class="btn" id="go">Sign me in</button>
+</div>
+<script>
+// The token arrives in the link. We only use it when the person taps the button, so email
+// link-scanners that open links automatically can't use up the one-time link.
+const params = new URLSearchParams(location.search);
+const token = params.get("token");
+const next = params.get("next") || "/";
+history.replaceState(null, "", "/auth/verify"); // hide the token from the address bar and history
+const msg = document.getElementById("msg"), btn = document.getElementById("go");
+if (!token) { msg.textContent = "This link is missing its sign-in code. Request a new link."; btn.textContent = "Back to the app"; btn.onclick = () => (location.href = "/"); }
+else btn.onclick = async () => {
+  btn.disabled = true; msg.textContent = "Signing you in…";
+  try {
+    const res = await fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, next }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Sign-in failed");
+    location.href = data.next || "/";
+  } catch (e) {
+    msg.innerHTML = ""; const p = document.createElement("span"); p.className = "err"; p.textContent = e.message; msg.appendChild(p);
+    btn.disabled = false; btn.textContent = "Back to the app"; btn.onclick = () => (location.href = "/");
+  }
+};
+</script>
+</body></html>
