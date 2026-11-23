@@ -92,11 +92,16 @@ if (!LIVE) {
   check("Signed-out session can't be reused (401)", r.status === 401, `got ${r.status}`);
 }
 
-// 5. Rate limit: 30 rapid sign-in requests from one visitor (junk addresses, so no email is sent)
+// 5. Rate limit: 30 rapid sign-in requests from one visitor (junk addresses, so no email is sent).
+// Junk has its own strict bucket, so running this test never blocks real sign-ins from the same Wi-Fi.
 const statuses = [];
 for (let i = 0; i < 30; i++) statuses.push((await call("/api/auth/request", { body: { email: `not-an-email-${i}` } })).status);
 const refused = statuses.filter((s) => s === 429).length;
 check("Rate limit refuses most of 30 rapid calls (429)", refused >= 24, `${30 - refused} allowed, ${refused} refused`);
+if (!LIVE) {
+  const after = await call("/api/auth/request", { body: { email: `real.after.${Date.now()}@test.example` } });
+  check("A real sign-in from the same connection still works after the junk burst", after.status === 200, `got ${after.status}`);
+}
 
 console.log(`\n${pass} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

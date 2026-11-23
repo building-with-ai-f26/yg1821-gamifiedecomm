@@ -430,8 +430,11 @@ const routes = {
 
   // Step 1 of sign-in: email a one-time link. Same reply whether or not the email has an account.
   "POST /api/auth/request": async (_, b, ctx) => {
-    limit(`login:ip:${ctx.ip}`, 5, 15 * 60_000); // counted before validation, so junk requests also hit the limit
-    const email = auth.normalizeEmail(b.email) || fail(400, "Enter a valid email address");
+    // Classmates on one Wi-Fi share a public IP, so real sign-ins get a generous per-connection allowance,
+    // while invalid/junk requests (bots, scripts) get a strict one. Each email is limited separately too.
+    const email = auth.normalizeEmail(b.email);
+    if (!email) { limit(`login:bad:${ctx.ip}`, 5, 15 * 60_000); fail(400, "Enter a valid email address"); }
+    limit(`login:ip:${ctx.ip}`, 40, 15 * 60_000);
     limit(`login:email:${email}`, 3, 15 * 60_000);
     // Housekeeping: forget expired links and sessions.
     for (const [k, v] of Object.entries(db.loginTokens)) if (v.exp < Date.now()) delete db.loginTokens[k];
@@ -531,7 +534,7 @@ const routes = {
   "POST /api/quiz/start": async (_, b, ctx) => {
     const u = requireUser(ctx), c = contestById(b.contestId);
     limit(`quiz:user:${u.key}`, 10, 10 * 60_000);
-    limit(`quiz:ip:${ctx.ip}`, 20, 10 * 60_000);
+    limit(`quiz:ip:${ctx.ip}`, 100, 10 * 60_000); // shared Wi-Fi: per-player limit above + daily AI cap protect cost
     const j = u.joined[c.id] || fail(400, "Join this contest first");
     if (c.status !== "live") fail(400, "This contest has ended");
     if (!c.quiz.enabled) fail(400, "This contest has no quiz");
