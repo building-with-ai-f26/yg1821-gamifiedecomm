@@ -3,7 +3,7 @@
 What Build 2 deliberately left out, so the next builds stay small and reviewable. Move items to "Done" with the commit that shipped them.
 
 ## Build 3 (due Nov 23): brand admin panel, properly
-- [ ] **Admin login and roles**: brand admin vs Credexon super admin (today `/admin` has no login; local demo only).
+- [x] **Admin login**: signed-in emails in `ADMIN_EMAILS` (Build 3). Still to do: roles (brand admin vs Credexon super admin).
 - [ ] **Full admin panel design**, following the Credexon platform dashboard: vendor management, industry config, game library, scoring system, fantasy contests, ad campaigns, revenue & billing, reports, user analytics, rewards ledger.
 - [ ] **Multi-brand (vendor) support**: each brand gets its own catalog, contests and shop; today there is one brand (GlowCart).
 - [ ] **Contest scheduling**: start and end dates, auto-end with automatic prize payout (today: manual "End & pay").
@@ -12,8 +12,19 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 - [ ] **Admin quiz review**: approve, edit or ban AI questions before they go live; flag reported questions.
 - [ ] **Analytics charts**: daily active players, quiz funnel, retention, per-contest trends (PostHog dashboards plus in-app charts).
 
+## Security follow-ups (from SECURITY.md)
+- [ ] Send sign-in emails from a verified domain sender (e.g. `league@credexon.com`) instead of an NYU address, so they don't land in spam.
+- [ ] Admin second factor, or admin sign-in only from a verified company domain.
+- [ ] Move inline scripts and click handlers into files so the Content-Security-Policy can drop `'unsafe-inline'`.
+- [ ] Shared rate-limit store (e.g. Redis) before running more than one server instance.
+- [ ] Scheduled database backups beyond Neon's free restore window.
+- [ ] Auto-deploy from GitHub once the class organization approves Render's access (today: Manual Deploy).
+
+## Developer experience
+- [ ] **API documentation page**: an OpenAPI spec and an `/api-docs` page listing every endpoint, its inputs, and which ones need sign-in or admin.
+
 ## Players and accounts
-- [ ] **Real sign-up and login** (email or phone OTP); today a player is just a name stored in the browser.
+- [x] **Real sign-up and login**: email magic link via Brevo (Build 3).
 - [ ] **User list with logins** for admins: sessions, last seen, devices.
 - [ ] Profile, login streak rewards (Day 1/3/5/7) and "complete profile" points from the scoring sheet.
 
@@ -32,7 +43,7 @@ What Build 2 deliberately left out, so the next builds stay small and reviewable
 - [ ] Timer per question and anti-cheat (today: answers are checked server-side, no timer).
 
 ## Platform
-- [ ] Real database instead of `data/db.json`; cloud deploy (Build 5).
+- [x] Real database (Neon Postgres) and cloud deploy (Render) (Build 3).
 - [ ] Rewards ledger with audit trail for coins issued and redeemed.
 - [ ] Automated tests for points crediting, the 5-contest limit, quiz scoring and prize payout.
 

@@ -72,6 +72,10 @@ if (!LIVE) {
   const aAfter = (await call("/api/state", { cookie: A.cookie })).data.me;
   const bAfter = (await call("/api/state", { cookie: B.cookie })).data.me;
   check("B naming A in a request still only affects B", !aAfter.joined.winter && Boolean(bAfter.joined.winter));
+  r = await call("/api/profile", { cookie: B.cookie, body: { name: aAfter.name } });
+  check("B can't take A's display name (409)", r.status === 409, `got ${r.status}`);
+  r = await call("/api/profile", { cookie: B.cookie, body: { name: "vishal" } });
+  check("B can't copy a leaderboard player's name (409)", r.status === 409, `got ${r.status}`);
   r = await call("/api/admin/overview", { cookie: B.cookie });
   check("Non-admin player refused from admin API (403)", r.status === 403, `got ${r.status}`);
   if (process.env.ADMIN_EMAIL) {

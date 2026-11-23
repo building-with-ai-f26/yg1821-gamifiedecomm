@@ -476,6 +476,10 @@ const routes = {
     const u = requireUser(ctx);
     const name = String(b.name || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim().slice(0, 24);
     if (name.length < 2) fail(400, "Pick a name of 2–24 letters or numbers");
+    // No impersonation on leaderboards: a name already used by another player (real or demo) is taken.
+    const taken = (n) => n.toLowerCase() === name.toLowerCase();
+    if (Object.values(db.users).some((x) => x.key !== u.key && taken(x.name)) || db.contests.some((c) => c.seedPlayers.some((p) => taken(p.name))))
+      fail(409, "That name is taken. Pick another one.");
     u.name = name;
     save();
     return publicUser(u);
