@@ -23,7 +23,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
 // Render needs 0.0.0.0; locally we only listen on this computer.
 const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
-const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
+const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).trim().replace(/\/$/, "");
 // Brand admins: comma-separated emails allowed into /admin and /api/admin/*.
 const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
 // Behind Render's proxy the real visitor IP is in X-Forwarded-For.
@@ -443,7 +443,9 @@ const routes = {
     db.loginTokens[auth.hashToken(token)] = { email, exp: Date.now() + auth.LOGIN_TOKEN_TTL_MS };
     save();
     const link = `${APP_URL}/auth/verify?token=${token}`;
-    const { sent } = await auth.sendMagicLink({ to: email, link, brand: db.brand.name });
+    let sent;
+    try { ({ sent } = await auth.sendMagicLink({ to: email, link, brand: db.brand.name })); }
+    catch { fail(502, "We couldn't send the sign-in email right now. Please try again in a minute."); }
     // Local development only: hand the link back so you can test without an email service.
     return { ok: true, sent, ...(!sent && !IS_PROD ? { devLink: link } : {}) };
   },
